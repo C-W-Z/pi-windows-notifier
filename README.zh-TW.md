@@ -195,18 +195,43 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 ## 指令
 
-在 Pi 裡執行。輸入 `/windows-notifier ` 後按 **Tab**，會列出 `status`、`reload` 或 `test`；用 **↑/↓** 選擇，再按 **Tab** 接受。補完 `test` 會自動加上空白，接著連按 **Tab** 即可列出並接受事件名稱，不必手動輸入空白；也支援 `test co` 這類前綴。
+在 Pi 裡執行。輸入 `/windows-notifier ` 後按 **Tab**，會列出 `status`、`reload` 或 `test`；用 **↑/↓** 選擇，再按 **Tab** 接受。補完 `status` 或 `test` 會自動加上空白，接著連按 **Tab** 即可列出並接受明細選項或事件名稱，不必手動輸入空白；也支援 `status d`、`test co` 這類前綴。
 
 ```text
 /windows-notifier status
+/windows-notifier status detail
+/windows-notifier status all
 /windows-notifier reload
 /windows-notifier test
 /windows-notifier test permission
 ```
 
-- `status`：查看通道開關、音效選擇、backend 狀態、佇列計數和診斷碼，不會顯示自訂文字、檔案路徑或 session 內容。
+- `status`：以分行摘要查看總開關、backend、事件開啟數、佇列計數、helper 狀態和診斷碼。不帶參數也會顯示相同摘要。
+- `status detail`：在摘要下方列出設定版本、五種事件的開關、彈窗開關與音效開關／來源；`status all` 與它相同。事件明細是設定值，實際通知仍受總開關、事件開關、通道開關及 backend 限制。
+- 摘要與明細都不會顯示自訂文字、檔案路徑或 session 內容；檔案音效只標示為 `WAV 檔案`。
 - `reload`：重新讀取設定，取消舊的通知工作。
 - `test`：預設測試完成通知，也能指定 `permission`、`question`、`completed`、`aborted` 或 `failed`。
+
+`status` 摘要範例：
+
+```text
+Windows notifier 狀態
+總開關：開啟
+Backend：OK
+事件設定：5 / 5 開啟
+佇列：等待 0 · 丟棄 0
+Helper：閒置
+診斷：無
+
+查看明細：/windows-notifier status detail
+```
+
+`status detail` 會再加上每個事件的明細，例如：
+
+```text
+  completed   事件：開啟  彈窗：開啟
+              音效：開啟（Hand）
+```
 
 **測試會真的跳通知、播放音效。** 和自動通知一樣，它會遵守開關、佇列與限流，不會強行送出已停用的事件。
 

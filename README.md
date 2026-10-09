@@ -195,18 +195,43 @@ The old unversioned format, with a boolean such as `events.completed.sound: fals
 
 ## Commands
 
-Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`, `reload`, or `test`, use **↑/↓** to choose, then press **Tab** to accept. Completing `test` adds a space automatically, so you can keep pressing **Tab** to show and accept an event name without typing a space. Partial prefixes such as `test co` also work.
+Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`, `reload`, or `test`, use **↑/↓** to choose, then press **Tab** to accept. Completing `status` or `test` adds a space automatically, so you can keep pressing **Tab** to show and accept a detail option or event name without typing a space. Partial prefixes such as `status d` and `test co` also work.
 
 ```text
 /windows-notifier status
+/windows-notifier status detail
+/windows-notifier status all
 /windows-notifier reload
 /windows-notifier test
 /windows-notifier test permission
 ```
 
-- `status` shows channel switches, sound choices, backend status, queue counters, and diagnostic codes—not your custom text, file paths, or session content.
+- `status` shows a readable, multi-line summary: the global switch, backend, enabled-event count, queue counters, helper state, and diagnostic codes. Omitting the subcommand shows the same summary.
+- `status detail` adds the schema version and each event's switch, toast switch, and sound switch/source. `status all` is an alias. These are configured values; actual notifications still depend on the global, event, and channel switches and the backend.
+- Neither view displays custom text, file paths, or session content. File sounds are labeled `WAV 檔案` without their paths.
 - `reload` reads the config again and cancels old notification work.
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
+
+Example `status` summary (command output remains in Traditional Chinese):
+
+```text
+Windows notifier 狀態
+總開關：開啟
+Backend：OK
+事件設定：5 / 5 開啟
+佇列：等待 0 · 丟棄 0
+Helper：閒置
+診斷：無
+
+查看明細：/windows-notifier status detail
+```
+
+`status detail` also adds rows for each event, for example:
+
+```text
+  completed   事件：開啟  彈窗：開啟
+              音效：開啟（Hand）
+```
 
 **Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.
 

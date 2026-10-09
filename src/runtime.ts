@@ -35,6 +35,36 @@ const SUBMISSION_MESSAGES: Record<Submission["status"], string> = {
   failed: "Windows 通知提交失敗；請用 status 查看固定診斷碼。",
 };
 
+/** 只展示安全的狀態欄位；明細也不包含自訂文字、檔案路徑或 session 內容。 */
+function formatStatus(target: Session | undefined, detail: boolean): string {
+  const config = target?.result.config;
+  const queue = target?.scheduler?.status();
+  const onOff = (enabled: boolean) => enabled ? "開啟" : "關閉";
+  const diagnostics = [...(target?.diagnostics ?? [])];
+  const lines = [
+    "Windows notifier 狀態",
+    `總開關：${onOff(config?.enabled ?? false)}`,
+    `Backend：${target?.backendCode ?? "NOT_STARTED"}`,
+    `事件設定：${config ? `${KINDS.filter(kind => config.events[kind].enabled).length} / ${KINDS.length} 開啟` : "尚未載入"}`,
+    `佇列：${queue ? `等待 ${queue.queued} · 丟棄 ${queue.dropped}` : "不可用"}`,
+    `Helper：${queue ? queue.active ? "執行中" : "閒置" : "不可用"}`,
+    `診斷：${diagnostics.length ? diagnostics.join("、") : "無"}`,
+  ];
+  if (detail) {
+    lines.push("", `設定版本：${config?.schemaVersion ?? "尚未載入"}`,
+      "事件明細（設定值；實際通知仍受總開關與 backend 限制）：");
+    if (config) {
+      for (const kind of KINDS) {
+        const event = config.events[kind];
+        const source = event.sound.source.type === "system" ? event.sound.source.name : "WAV 檔案";
+        lines.push(`  ${kind.padEnd(10)}  事件：${onOff(event.enabled)}  彈窗：${onOff(event.toast.enabled)}`,
+          `              音效：${onOff(event.sound.enabled)}（${source}）`);
+      }
+    } else lines.push("  尚未載入");
+  } else lines.push("", "查看明細：/windows-notifier status detail");
+  return lines.join("\n");
+}
+
 /** factory 只註冊 API；程序、timer 與 event bus 訂閱皆屬於啟動後的 session。 */
 export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {}): void {
   const platform = options.platform ?? process.platform;
@@ -124,7 +154,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
   pi.on("agent_settled", event => { observe(state => state.settled(event)); });
 
   pi.registerCommand("windows-notifier", {
-    description: "Windows 通知：status、reload、test [permission|question|completed|aborted|failed]",
+    description: "Windows 通知：status [detail|all]、reload、test [permission|question|completed|aborted|failed]",
     getArgumentCompletions: notifierArgumentCompletions,
     handler: async (args, context) => {
       const parts = args.trim().split(/\s+/u);
@@ -134,22 +164,9 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
         return;
       }
       const target = session;
-      if (!args.trim() || parts.length === 1 && parts[0] === "status") {
-        const status = {
-          backend: target?.backendCode ?? "NOT_STARTED",
-          enabled: target?.result.config.enabled ?? false,
-          schemaVersion: target?.result.config.schemaVersion,
-          // 自訂文字與檔案路徑只送入 helper；status 不展示可能含敏感資訊的設定。
-          events: target ? Object.fromEntries(KINDS.map(kind => {
-            const event = target.result.config.events[kind];
-            return [kind, { enabled: event.enabled, toast: { enabled: event.toast.enabled },
-              sound: { enabled: event.sound.enabled, source: event.sound.source.type === "system"
-                ? { ...event.sound.source } : { type: "file" } } }];
-          })) : undefined,
-          ...target?.scheduler?.status(),
-          diagnostics: [...(target?.diagnostics ?? [])],
-        };
-        context.ui.notify(JSON.stringify(status), "info");
+      if (!args.trim() || parts[0] === "status" &&
+          (parts.length === 1 || parts.length === 2 && ["detail", "all"].includes(parts[1]))) {
+        context.ui.notify(formatStatus(target, parts.length === 2), "info");
         return;
       }
       if (parts[0] === "test" && parts.length <= 2 &&
@@ -166,7 +183,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
           result.status === "submitted" ? "info" : "warning");
         return;
       }
-      context.ui.notify("用法：/windows-notifier status | reload | test [permission|question|completed|aborted|failed]", "warning");
+      context.ui.notify("用法：/windows-notifier status [detail|all] | reload | test [permission|question|completed|aborted|failed]", "warning");
     },
   });
 }

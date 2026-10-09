@@ -6,16 +6,17 @@ export function notifierArgumentCompletions(prefix: string): AutocompleteItem[] 
   const argument = prefix.slice(leading.length);
   if (!/\s/u.test(argument)) {
     const matches = ["status", "reload", "test"].filter(value => value.startsWith(argument));
-    // test 還有下一層參數；補上空白，讓下一次 Tab 能直接補事件名稱。
+    // status 與 test 還有下一層參數；補上空白，讓下一次 Tab 能直接補全。
     return matches.length ? matches.map(value => ({
-      value: leading + value + (value === "test" ? " " : ""), label: value,
+      value: leading + value + (value === "test" || value === "status" ? " " : ""), label: value,
     })) : null;
   }
-  const match = argument.match(/^test(\s+)(\S*)$/u);
+  const match = argument.match(/^(test|status)(\s+)(\S*)$/u);
   if (!match) return null;
-  const matches = KINDS.filter(kind => kind.startsWith(match[2]));
-  // Pi 會替換整段 argument prefix；必須保留 test 與空白，不只回傳事件名稱。
-  return matches.length ? matches.map(kind => ({ value: leading + "test" + match[1] + kind, label: kind })) : null;
+  const values = match[1] === "test" ? KINDS : ["detail", "all"];
+  const matches = values.filter(value => value.startsWith(match[3]));
+  // Pi 會替換整段 argument prefix；必須保留子指令與空白。
+  return matches.length ? matches.map(value => ({ value: leading + match[1] + match[2] + value, label: value })) : null;
 }
 
 /** 只接管本指令的參數，避免選單關閉後的 Tab 改走 Pi 的強制檔案補全。 */
