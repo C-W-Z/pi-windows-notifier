@@ -13,7 +13,7 @@ export function notifierArgumentCompletions(prefix: string): AutocompleteItem[] 
   }
   const match = argument.match(/^(test|status)(\s+)(\S*)$/u);
   if (!match) return null;
-  const values = match[1] === "test" ? KINDS : ["detail", "all"];
+  const values = match[1] === "test" ? KINDS : ["all"];
   const matches = values.filter(value => value.startsWith(match[3]));
   // Pi 會替換整段 argument prefix；必須保留子指令與空白。
   return matches.length ? matches.map(value => ({ value: leading + match[1] + match[2] + value, label: value })) : null;

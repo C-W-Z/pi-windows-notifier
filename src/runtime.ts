@@ -61,7 +61,7 @@ function formatStatus(target: Session | undefined, detail: boolean): string {
           `              Sound: ${onOff(event.sound.enabled)} (${source})`);
       }
     } else lines.push("  Not loaded");
-  } else lines.push("", "Details: /windows-notifier status detail");
+  } else lines.push("", "Details: /windows-notifier status all");
   return lines.join("\n");
 }
 
@@ -154,7 +154,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
   pi.on("agent_settled", event => { observe(state => state.settled(event)); });
 
   pi.registerCommand("windows-notifier", {
-    description: "Windows 通知：status [detail|all]、reload、test [permission|question|completed|aborted|failed]",
+    description: "Windows 通知：status [all]、reload、test [permission|question|completed|aborted|failed]",
     getArgumentCompletions: notifierArgumentCompletions,
     handler: async (args, context) => {
       const parts = args.trim().split(/\s+/u);
@@ -165,7 +165,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
       }
       const target = session;
       if (!args.trim() || parts[0] === "status" &&
-          (parts.length === 1 || parts.length === 2 && ["detail", "all"].includes(parts[1]))) {
+          (parts.length === 1 || parts.length === 2 && parts[1] === "all")) {
         context.ui.notify(formatStatus(target, parts.length === 2), "info");
         return;
       }
@@ -183,7 +183,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
           result.status === "submitted" ? "info" : "warning");
         return;
       }
-      context.ui.notify("用法：/windows-notifier status [detail|all] | reload | test [permission|question|completed|aborted|failed]", "warning");
+      context.ui.notify("用法：/windows-notifier status [all] | reload | test [permission|question|completed|aborted|failed]", "warning");
     },
   });
 }

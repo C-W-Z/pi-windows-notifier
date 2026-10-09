@@ -49,15 +49,13 @@ test("實際連續 Tab：指令名稱 → 子指令 → 事件，不需插入空
   assert.equal(h.submitted(), 0);
 });
 
-test("實際連續 Tab：status 明細與 all 同義指令，不需手動插入空白", async () => {
+test("實際連續 Tab：status all 明細，不需手動插入空白", async () => {
   const h = editorHarness();
   h.editor.setText("/windows-notifier st");
   await h.key("\t");
   assert.equal(h.editor.getText(), "/windows-notifier status ");
   await h.key("\t");
-  assert.equal(h.editor.isShowingAutocomplete(), true);
-  await h.key("\t");
-  assert.equal(h.editor.getText(), "/windows-notifier status detail");
+  assert.equal(h.editor.getText(), "/windows-notifier status all");
   h.editor.setText("/windows-notifier status a");
   await h.key("\t");
   assert.equal(h.editor.getText(), "/windows-notifier status all");
@@ -93,7 +91,7 @@ test("無效參數與取消的請求不改走檔案補全", async () => {
   current.getSuggestions = async () => { assert.fail("不應呼叫檔案補全"); };
   current.shouldTriggerFileCompletion = () => false;
   const provider = withNotifierCompletions(current);
-  for (const argument of ["unknown", "status nope", "status detail ", "status all x", "reload x", "test nope", "test completed ", "test completed x"]) {
+  for (const argument of ["unknown", "status nope", "status d", "status detail", "status detail ", "status all x", "reload x", "test nope", "test completed ", "test completed x"]) {
     const line = "/windows-notifier " + argument;
     assert.equal(provider.shouldTriggerFileCompletion!([line], 0, line.length), true);
     assert.equal(await provider.getSuggestions([line], 0, line.length, options()), null);

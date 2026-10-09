@@ -70,9 +70,10 @@ test("指令參數補全涵蓋子指令、事件前綴及完整替換值，不�
   assert.deepEqual(await h.complete("te"), [{ value: "test ", label: "test" }]);
   assert.deepEqual(await h.complete("r"), [{ value: "reload", label: "reload" }]);
   assert.deepEqual(await h.complete("  st"), [{ value: "  status ", label: "status" }]);
-  assert.deepEqual(await h.complete("status "), ["detail", "all"]
+  assert.deepEqual(await h.complete("status "), ["all"]
     .map(value => ({ value: "status " + value, label: value })));
-  assert.deepEqual(await h.complete("status d"), [{ value: "status detail", label: "detail" }]);
+  assert.equal(await h.complete("status d"), null);
+  assert.equal(await h.complete("status detail"), null);
   assert.deepEqual(await h.complete(" status   a"), [{ value: " status   all", label: "all" }]);
   assert.deepEqual(await h.complete("test "), ["permission", "question", "completed", "aborted", "failed"]
     .map(kind => ({ value: "test " + kind, label: kind })));
@@ -107,7 +108,7 @@ test("TUI session 安裝補全 wrapper，設定 reload 不重複安裝", async (
   assert.equal(h.calls.length, 0);
   await h.hook("session_shutdown");
 });
-test("status 與空參數顯示簡潔摘要；detail 與 all 顯示相同的安全明細", async () => {
+test("status 與空參數顯示簡潔摘要；all 顯示安全明細", async () => {
   const h = harness();
   await h.hook("session_start");
   await h.command("status");
@@ -115,11 +116,11 @@ test("status 與空參數顯示簡潔摘要；detail 與 all 顯示相同的安�
   assert.equal(summary, [
     "Windows notifier status", "Global: On", "Backend: OK", "Configured events: 5 / 5 enabled",
     "Queue: Queued 0 · Dropped 0", "Helper: Idle", "Diagnostics: None", "",
-    "Details: /windows-notifier status detail",
+    "Details: /windows-notifier status all",
   ].join("\n"));
   await h.command("  ");
   assert.equal(h.messages.at(-1), summary);
-  await h.command(" status   detail ");
+  await h.command(" status   all ");
   const detail = h.messages.at(-1)!;
   assert.equal(/[\u3400-\u9fff]/u.test(summary + detail), false);
   assert.match(detail, /Schema version: 2/u);
@@ -128,8 +129,6 @@ test("status 與空參數顯示簡潔摘要；detail 與 all 顯示相同的安�
   assert.match(detail, /Sound: On \(Hand\)/u);
   assert.match(detail, /Sound: On \(Exclamation\)/u);
   assert.equal(detail.includes("Details"), false);
-  await h.command("status all");
-  assert.equal(h.messages.at(-1), detail);
   assert.equal(h.calls.length, 0);
   await h.hook("session_shutdown");
 });
@@ -139,7 +138,7 @@ test("status 明細區分總開關、事件與通道設定，不暗示停用事�
     question: { sound: { enabled: false } },
   } }) });
   await h.hook("session_start");
-  await h.command("status detail");
+  await h.command("status all");
   const detail = h.messages.at(-1)!;
   assert.match(detail, /Global: Off/u);
   assert.match(detail, /Configured events: 4 \/ 5 enabled/u);
@@ -154,7 +153,7 @@ test("未啟動、不支援環境與無效設定的 status 仍可讀且保留診
   assert.match(h.messages.at(-1)!, /Backend: NOT_STARTED/u);
   assert.match(h.messages.at(-1)!, /Configured events: Not loaded/u);
   assert.match(h.messages.at(-1)!, /Queue: Unavailable\nHelper: Unavailable/u);
-  await h.command("status detail");
+  await h.command("status all");
   assert.match(h.messages.at(-1)!, /Schema version: Not loaded/u);
   assert.equal(h.makeCount(), 0);
   const unsupported = harness({ platform: "linux" });
@@ -190,9 +189,9 @@ test("status 顯示執行中 helper、等待與丟棄計數，讀取本身不提
 test("未知或過多的 status 參數顯示用法，不回顯輸入或提交通知", async () => {
   const h = harness();
   await h.hook("session_start");
-  for (const args of ["status PRIVATE_INPUT", "status detail extra", "status all extra"]) {
+  for (const args of ["status PRIVATE_INPUT", "status detail", "status detail extra", "status all extra"]) {
     await h.command(args);
-    assert.match(h.messages.at(-1)!, /^用法：\/windows-notifier status \[detail\|all\]/u);
+    assert.match(h.messages.at(-1)!, /^用法：\/windows-notifier status \[all\]/u);
   }
   assert.equal(h.messages.join().includes("PRIVATE_INPUT"), false);
   assert.equal(h.calls.length, 0);
@@ -301,11 +300,10 @@ test("自訂文字可送達 backend，但 status、警告及 test 結果不展�
   assert.deepEqual(h.calls[0].payload.sound.source, { type: "system", name: "Question" });
   await h.command("status");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
-  await h.command("status detail");
+  await h.command("status all");
   assert.match(h.messages.at(-1)!, /permission\s+Event: On  Toast: Off/u);
   assert.match(h.messages.at(-1)!, /Sound: On \(Question\)/u);
   assert.match(h.messages.at(-1)!, /Schema version: 2/u);
-  await h.command("status all");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
   h.setResult(parseConfig({ schemaVersion: 2, defaults: { toast: { title: "PRIVATE_TITLE", message: 42 } } }));
   await h.command("reload");
@@ -323,10 +321,8 @@ test("檔案音效可以測試與 reload，但 status 不洩漏私人路徑", as
   await pending;
   assert.deepEqual(h.calls[0].payload.sound.source, { type: "file", path: "C:/PRIVATE_USER/done.wav" });
   await h.command("status");
-  for (const args of ["status detail", "status all"]) {
-    await h.command(args);
-    assert.match(h.messages.at(-1)!, /Sound: On \(WAV file\)/u);
-  }
+  await h.command("status all");
+  assert.match(h.messages.at(-1)!, /Sound: On \(WAV file\)/u);
   assert.equal(h.messages.join().includes("PRIVATE_USER"), false);
   h.setResult(makeConfig("D:/PRIVATE_USER/new.wav"));
   await h.command("reload");

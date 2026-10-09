@@ -195,11 +195,10 @@ The old unversioned format, with a boolean such as `events.completed.sound: fals
 
 ## Commands
 
-Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`, `reload`, or `test`, use **↑/↓** to choose, then press **Tab** to accept. Completing `status` or `test` adds a space automatically, so you can keep pressing **Tab** to show and accept a detail option or event name without typing a space. Partial prefixes such as `status d` and `test co` also work.
+Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`, `reload`, or `test`, use **↑/↓** to choose, then press **Tab** to accept. Completing `status` or `test` adds a space automatically, so you can keep pressing **Tab** to show and accept a detail option or event name without typing a space. Partial prefixes such as `status a` and `test co` also work.
 
 ```text
 /windows-notifier status
-/windows-notifier status detail
 /windows-notifier status all
 /windows-notifier reload
 /windows-notifier test
@@ -207,7 +206,7 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`,
 ```
 
 - `status` shows a readable, multi-line summary: the global switch, backend, enabled-event count, queue counters, helper state, and diagnostic codes. Omitting the subcommand shows the same summary.
-- `status detail` adds the schema version and each event's switch, toast switch, and sound switch/source. `status all` is an alias. These are configured values; actual notifications still depend on the global, event, and channel switches and the backend.
+- `status all` adds the schema version and each event's switch, toast switch, and sound switch/source. These are configured values; actual notifications still depend on the global, event, and channel switches and the backend.
 - Neither view displays custom text, file paths, or session content. File sounds are labeled `WAV file` without their paths.
 - `reload` reads the config again and cancels old notification work.
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
@@ -223,10 +222,10 @@ Queue: Queued 0 · Dropped 0
 Helper: Idle
 Diagnostics: None
 
-Details: /windows-notifier status detail
+Details: /windows-notifier status all
 ```
 
-`status detail` also adds rows for each event, for example:
+`status all` also adds rows for each event, for example:
 
 ```text
   completed   Event: On  Toast: On
