@@ -2,9 +2,13 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-不用一直盯著 Pi。需要你確認權限、回答問題，或模型回應結束時，這個 extension 會跳出 Windows 通知，並播放系統提示音或你自訂的 WAV 音效。就算你正在看別的視窗，也會提醒。
+**專為 Windows 設計。0 依賴套件。以安全為優先的提示音與通知插件。**
+
+需要你確認權限、回答問題，或模型回應結束時，會自動跳出 Windows 通知，並播放系統提示音或你自訂的 WAV 音效。就算你正在看別的視窗也會提醒，讓你不用一直盯著 Pi。
 
 通知不會從 session 帶出問題、命令、檔案路徑或模型回答，但你可以設定自己的固定提醒文字。它也不會替你批准權限或回答問題，所有提醒都在本機處理。
+
+使用 Pi 提供的 API、Node.js built-ins 與 Windows 內建通知和音效 API，不必另裝通知函式庫或外部播放器。設計上避開了許多其他同類套件的高風險做法；具體防護與限制見[隱私與程序安全](#隱私與程序安全)。
 
 [Pi 套件頁](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
 
@@ -37,7 +41,7 @@ pi remove npm:pi-windows-notifier
 |---|---|---|
 | `permission` | Permission approval needed | Exclamation |
 | `question` | Waiting for your answer | Exclamation |
-| `completed` | Response complete | Asterisk |
+| `completed` | Response complete | Hand |
 | `aborted` | Response interrupted | Exclamation |
 | `failed` | Response failed | Exclamation |
 
@@ -101,7 +105,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
     "completed": {
       "enabled": true,
       "toast": { "enabled": true, "title": "Pi", "message": "Response complete" },
-      "sound": { "enabled": true, "source": { "type": "system", "name": "Asterisk" } }
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Hand" } }
     },
     "aborted": {
       "enabled": true,
@@ -142,7 +146,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 - **只要音效**：將 `toast.enabled` 設為 `false`、`sound.enabled` 設為 `true`。
 - 兩個通道都關閉時，不啟動 helper。事件可以覆寫共用通道開關，但不能繞過已關閉的總開關或事件開關。
 
-沒有設定檔時，所有事件與通道都開啟，標題是 Pi，訊息是英文。完成通知使用 Asterisk，其他事件使用 Exclamation。
+沒有設定檔時，所有事件與通道都開啟，標題是 Pi，訊息是英文。完成通知使用 Hand，其他事件使用 Exclamation。
 
 ### 文字與音效限制
 
@@ -169,6 +173,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 同樣的 `sound.source` 也可以放在 `defaults`，讓多個事件共用檔案，或為每個事件選擇不同音效。想沿用 `defaults` 時，請移除原本事件底下的來源覆寫。
 
+> 格式、路徑、大小與長度限制是刻意的安全取捨：讓檔案存取與播放保持有界，不引入外部 codec／播放器選擇或網路音訊來源。這個 extension 著重短提示音，不是通用媒體播放器。
 - 使用本機**固定磁碟**上的絕對路徑，例如 `C:/Sounds/done.wav`。正斜線可以直接使用，避免 JSON 跳脫；使用反斜線時，`C:\Sounds\done.wav` 在 JSON 要寫成 `"C:\\Sounds\\done.wav"`。
 - 不支援相對路徑、`~`、環境變數展開、URL、UNC 路徑、網路磁碟、裝置路徑、alternate data streams 或 reparse points（包含上層目錄的 junction／symlink）。
 - 檔案必須是 RIFF PCM WAV：mono 或 stereo、8 或 16 bit、8–48 kHz，最多 **5 秒**、**5 MiB**。不支援 MP3、壓縮 WAV 或 WAV extensible；把 MP3 改名成 `.wav` 也不能播放。
@@ -227,12 +232,14 @@ Windows 仍然有最終決定權。勿擾模式、通知設定、系統音效方
 
 套件透過固定的 PowerShell 腳本呼叫 Windows 內建通知和音效 API，不用另外裝通知服務或播放器。沒有網路通知、遙測、下載或內附音效檔。
 
-- PowerShell 使用啟動環境的 `SystemRoot`／`windir` 下的絕對路徑，不從專案目錄或 `PATH` 搜尋。
-- helper 不透過 shell 執行，只從 stdin 接收事件類型、已驗證的通道設定（含自訂音效的本機 WAV 路徑）與固定設定文字。文字用 DOM text node 加進通知，不拼進 PowerShell 命令或 XML，也不傳入 session 內容。
-- 子程序只拿到必要的 Windows 環境變數，不繼承 Pi 的完整環境或 API tokens。`-ExecutionPolicy Bypass` 只作用於該子程序，不會取得管理員權限或改動永久設定，也不把 Execution Policy 當成安全邊界。
+部分功能限制是刻意的安全設計，不只是平台限制。以下防護針對命令注入、執行檔搜尋劫持、憑證意外外洩、網路路徑存取、無界程序建立，以及誤傷其他程式等風險；不代表套件保證沒有漏洞。
+
+- 為降低執行檔搜尋劫持風險，PowerShell 使用啟動環境的 `SystemRoot`／`windir` 下的絕對路徑，不從專案目錄或 `PATH` 搜尋。
+- 為避免設定值造成命令／XML 注入，helper 不透過 shell 執行，只從 stdin 接收事件類型、已驗證的通道設定（含自訂音效的本機 WAV 路徑）與固定設定文字。文字用 DOM text node 加進通知，不拼進 PowerShell 命令或 XML，也不傳入 session 內容。
+- 為降低憑證意外外洩風險，子程序只拿到必要的 Windows 環境變數，不繼承 Pi 的完整環境或 API tokens。`-ExecutionPolicy Bypass` 只作用於該子程序，不會取得管理員權限或改動永久設定，也不把 Execution Policy 當成安全邊界。
 - WAV 播放前會檢查本機磁碟路徑與 reparse points，讀入有大小限制的記憶體並驗證格式，再交給 `System.Media.SoundPlayer`。播放留在同一個 helper，沿用逾時與取消機制；檔案檢查不是防止攻擊者同時修改路徑的 sandbox。
-- 同時最多一個 helper，佇列最多 16 筆，啟動至少間隔一秒。工作等待超過 30 秒會過期，helper 的 timeout 是 10 秒，stdout 和 stderr 各限制 8 KiB。權限和提問比回應結束通知優先。
-- 只嘗試終止自己建立的子程序，不會按名稱關閉其他程序。如果 Windows 不允許終止，就等它結束，不會繼續堆出新的 helper。
+- 為限制大量程序啟動與資源消耗，同時最多一個 helper，佇列最多 16 筆，啟動至少間隔一秒。工作等待超過 30 秒會過期，helper 的 timeout 是 10 秒，stdout 和 stderr 各限制 8 KiB。權限和提問比回應結束通知優先。
+- 為避免誤關其他程式，只嘗試終止自己建立的子程序，不會按名稱關閉其他程序。如果 Windows 不允許終止，就等它結束，不會繼續堆出新的 helper。
 - 權限決策、問題結束、新回應、reload、session 切換和 shutdown 都會取消相關舊工作。已經顯示的 Toast 無法收回，取消和提交給 Windows 之間仍可能發生競態。
 
 這些防護假設 Windows 系統目錄、Pi 啟動環境和已安裝套件可信。它們無法防禦同程序裡的惡意 extension，或已遭入侵的使用者帳號。Pi permission system 並不是 extension 的 OS 沙盒。

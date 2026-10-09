@@ -22,7 +22,7 @@ const MESSAGES: Record<NotificationKind, string> = {
 export function defaults(): Config {
   return { schemaVersion: 2, enabled: true, events: Object.fromEntries(KINDS.map(kind =>
     [kind, { enabled: true, toast: { enabled: true, title: "Pi", message: MESSAGES[kind] },
-      sound: { enabled: true, source: { type: "system", name: kind === "completed" ? "Asterisk" : "Exclamation" } } }])) as Config["events"] };
+      sound: { enabled: true, source: { type: "system", name: kind === "completed" ? "Hand" : "Exclamation" } } }])) as Config["events"] };
 }
 function applyChannels(target: EventConfig, value: Record<string, unknown>): boolean {
   if (Object.hasOwn(value, "toast")) {

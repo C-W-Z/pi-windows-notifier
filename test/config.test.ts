@@ -29,6 +29,18 @@ test("內建、空設定與舊設定的未覆寫訊息均為英文，自訂文�
   const custom = parseConfig({ schemaVersion: 2, events: { question: { toast: { message: "請回答問題" } } } });
   assert.equal(custom.config.events.question.toast.message, "請回答問題");
 });
+test("完成預設使用 Hand，其他事件不變，明確設定 Asterisk 仍保留", () => {
+  for (const config of [defaults(), parseConfig({}).config, parseConfig({ schemaVersion: 2 }).config,
+    parseConfig({ events: { completed: { sound: false } } }).config]) {
+    for (const [kind, event] of Object.entries(config.events)) {
+      assert.deepEqual(event.sound.source, { type: "system", name: kind === "completed" ? "Hand" : "Exclamation" });
+    }
+  }
+  const explicit = parseConfig({ schemaVersion: 2,
+    events: { completed: { sound: { source: { type: "system", name: "Asterisk" } } } } });
+  assert.equal(explicit.ok, true);
+  assert.deepEqual(explicit.config.events.completed.sound.source, { type: "system", name: "Asterisk" });
+});
 test("未知欄位與錯型設定 fail closed", () => {
   for (const value of [null, [], true, { enabled: "true" }, { server: "https://example.test" },
     { events: { other: {} } }, { events: { question: null } }, { events: { question: { sound: 1 } } },
@@ -57,7 +69,7 @@ test("schema v2 內建預設、共用 defaults、事件覆寫依序合併", () =
   result.config.events.permission.sound.source.name = "Hand";
   assert.deepEqual(result.config.events.question.sound.source, { type: "system", name: "Beep" });
   assert.equal(input.defaults.sound.source.name, "Beep");
-  assert.deepEqual(defaults().events.completed.sound.source, { type: "system", name: "Asterisk" });
+  assert.deepEqual(defaults().events.completed.sound.source, { type: "system", name: "Hand" });
 });
 test("本機 WAV 路徑驗證，未知或混合欄位即使停用音效也拒絕", () => {
   for (const path of validPaths) {

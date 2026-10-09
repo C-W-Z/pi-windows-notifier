@@ -2,9 +2,13 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-Get a Windows notification when Pi needs your attention—or when it's finished responding. The extension shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed, interrupted, or failed responses, even while you're looking at another window.
+**Built specifically for Windows. Zero dependencies. Security-first alert sound and notification plugin.**
+
+Get a Windows notification when Pi needs your attention—or when it's finished responding. Shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed responses, even while you're looking at another window.
 
 Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
+
+Uses Pi-provided APIs, Node.js built-ins, and the built-in Windows notification and sound APIs—no extra notification library or external audio player to install. The design avoids risky patterns present in many other similar plugins. See [Privacy and process safety](#privacy-and-process-safety) for the protections and their limits.
 
 [Pi package page](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
 
@@ -37,7 +41,7 @@ pi remove npm:pi-windows-notifier
 |---|---|---|
 | `permission` | Pi needs you to review a permission request | Exclamation |
 | `question` | A supported question tool is waiting for your answer | Exclamation |
-| `completed` | Pi has finished responding | Asterisk |
+| `completed` | Pi has finished responding | Hand |
 | `aborted` | The response was interrupted | Exclamation |
 | `failed` | The response ended in an error | Exclamation |
 
@@ -101,7 +105,7 @@ This example includes the system-sound fields and all five events; file sounds a
     "completed": {
       "enabled": true,
       "toast": { "enabled": true, "title": "Pi", "message": "Response complete" },
-      "sound": { "enabled": true, "source": { "type": "system", "name": "Asterisk" } }
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Hand" } }
     },
     "aborted": {
       "enabled": true,
@@ -142,7 +146,7 @@ The `toast` and `sound` fields can appear under either `defaults` or an individu
 - **Sound only**: set `toast.enabled` to `false` and `sound.enabled` to `true`.
 - If both channels are off, no helper starts. Event settings can override shared channel switches, but can't override a disabled master or event switch.
 
-Without a config file, all events and channels are enabled, the title is Pi, and messages are in English. Completion uses Asterisk; the other events use Exclamation.
+Without a config file, all events and channels are enabled, the title is Pi, and messages are in English. Completion uses Hand; the other events use Exclamation.
 
 ### Text and sound limits
 
@@ -169,6 +173,7 @@ For example, use your own sound when a response completes:
 
 Use the same `sound.source` object under `defaults` to share a file across events, or choose different files for each event. Remove existing event-specific sources if you want them to inherit `defaults`.
 
+> The format, path, size, and duration limits are deliberate safety trade-offs: they keep file access and playback bounded without external codec/player selection or network audio sources. This extension favors short notification sounds over a general-purpose media player.
 - Supply an absolute path on a local **fixed drive**, such as `C:/Sounds/done.wav`. Forward slashes work and avoid JSON backslash escaping; with backslashes, write `C:\Sounds\done.wav` as `"C:\\Sounds\\done.wav"` in JSON.
 - Relative paths, `~`, environment-variable expansion, URLs, UNC paths, mapped network drives, device paths, alternate data streams, and reparse points (including ancestor junctions/symlinks) are not supported.
 - Files must be RIFF PCM WAV: mono or stereo, 8- or 16-bit, 8–48 kHz, at most **5 seconds** and **5 MiB**. MP3, compressed WAV, and WAV extensible are not supported. Renaming an MP3 to `.wav` won't work.
@@ -226,12 +231,14 @@ Automatic errors show at most one terminal warning per minute. Status uses fixed
 
 This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, downloads, or bundled sound files.
 
-- PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
-- The helper runs without a shell. It receives only the event type, validated channel settings (including a local WAV path when configured), and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
-- The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
+Several feature restrictions are intentional security decisions, not just platform limitations. The safeguards below address command injection, executable lookup hijacking, accidental credential exposure, network-path access, unbounded process creation, and interference with unrelated applications. They are not a guarantee that the extension is vulnerability-free.
+
+- To reduce executable lookup hijacking, PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
+- To avoid command/XML injection from config values, the helper runs without a shell. It receives only the event type, validated channel settings (including a local WAV path when configured), and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
+- To reduce accidental credential exposure, the child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
 - WAV files are checked for local-drive paths and reparse points, read into size-limited memory, and validated before playback through `System.Media.SoundPlayer`. Playback stays in the same helper and is covered by its timeout and cancellation. File checks are not a sandbox against an attacker concurrently changing filesystem paths.
-- Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
-- It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
+- To limit process storms and resource consumption, only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
+- To avoid terminating unrelated applications, it only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
 - Decisions, finished questions, new runs, reloads, session changes, and shutdown cancel the relevant old work. A toast already shown can't be taken back, and cancellation can race with submission to Windows.
 
 These safeguards assume that Windows' system directories, Pi's startup environment, and installed packages are trustworthy. They don't protect against a malicious extension running in the same process or a compromised user account. Pi's permission system doesn't sandbox extensions at the OS level.
