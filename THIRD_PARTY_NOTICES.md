@@ -35,6 +35,4 @@ SOFTWARE.
 
 - UniPi notify：https://github.com/Neuron-Mr-White/UniPi/tree/main/packages/notify，參考 6ac5da3。只參考事件／backend 分層概念，未複製程式碼或引入 UniPi core／node-notifier。
 - pi-jingle：https://github.com/Git-Monke/pi-jingle，參考 7e265ce。只參考事件音效概念，未複製程式碼或音效，因為尚未確認其授權。
-- Pi、permission system、RPIV／Lean、Plan mode 的本機型別及原始碼用於核對契約，不把第三方程式碼放入發布包。
-
-本地上游 checkout 位於 `../references/upstream/`，不受此 repository 管理。
+- Pi、permission system、RPIV／Lean、Plan mode 的 API／原始碼用於核對整合契約，不把第三方程式碼放入發布包。
