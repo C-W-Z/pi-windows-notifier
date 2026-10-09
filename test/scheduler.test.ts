@@ -1,0 +1,116 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { defaults } from "../src/config.ts";
+import { NotificationScheduler, QUEUE_TTL } from "../src/scheduler.ts";
+import type { Backend, LaunchResult } from "../src/launcher.ts";
+import type { NotificationJob } from "../src/types.ts";
+import { FakeClock, flush } from "./clock.ts";
+
+const ok: LaunchResult = { code: "OK", toast: true, sound: "played" };
+function fixture() {
+  const clock = new FakeClock();
+  const config = defaults();
+  const calls: Array<{ kind: string; sound: boolean; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
+  const diagnostics: string[] = [];
+  const backend: Backend = { available: true, code: "OK", launch: (kind, sound, signal) =>
+    new Promise(resolve => { calls.push({ kind, sound, signal, resolve });
+      signal.addEventListener("abort", () => resolve({ code: "CANCELLED", toast: false, sound: "failed" }), { once: true });
+    }) };
+  const scheduler = new NotificationScheduler(backend, () => config, code => diagnostics.push(code), clock);
+  const job = (key: string, kind: NotificationJob["kind"] = "question", valid = () => true): NotificationJob => ({ key, kind, valid });
+  return { clock, config, calls, diagnostics, scheduler, job };
+}
+test("等待事件優先、每次至少間隔一秒、最多一個 helper", async () => {
+  const { clock, calls, scheduler, job } = fixture();
+  const completed = scheduler.submit(job("run", "completed"));
+  const question = scheduler.submit(job("q"));
+  clock.advance(0);
+  assert.equal(calls[0].kind, "question");
+  clock.advance(300);
+  assert.equal(calls.length, 1);
+  calls[0].resolve(ok);
+  assert.equal((await question).status, "submitted");
+  await flush();
+  clock.advance(699);
+  assert.equal(calls.length, 1);
+  clock.advance(1);
+  assert.equal(calls[1].kind, "completed");
+  calls[1].resolve(ok);
+  await completed;
+  await scheduler.close();
+});
+test("大量事件佇列有界，優先丟棄完成項目", async () => {
+  const { scheduler, clock, calls, job, diagnostics } = fixture();
+  const completed = scheduler.submit(job("old", "completed"));
+  for (let i = 0; i < 16; i++) scheduler.enqueue(job(String(i)));
+  assert.equal((await completed).status, "dropped");
+  assert.equal(scheduler.status().queued, 16);
+  assert.equal(scheduler.dropped, 1);
+  scheduler.enqueue(job("extra"));
+  assert.equal(scheduler.dropped, 2);
+  assert.ok(diagnostics.includes("QUEUE_DROPPED"));
+  clock.advance(0);
+  assert.equal(calls.length, 1);
+  await scheduler.close();
+  assert.equal(clock.count(), 0);
+});
+test("取消、TTL、有效性與 disabled 再驗證", async () => {
+  const { scheduler, clock, calls, job, config } = fixture();
+  const cancelled = scheduler.submit(job("cancel"));
+  scheduler.cancel("cancel");
+  assert.equal((await cancelled).status, "cancelled");
+  const active = scheduler.submit(job("active"));
+  const stale = scheduler.submit(job("stale"));
+  clock.advance(0);
+  clock.advance(QUEUE_TTL);
+  calls[0].resolve(ok);
+  await active;
+  await flush();
+  clock.advance(0);
+  assert.equal((await stale).status, "expired");
+  let valid = true;
+  const invalid = scheduler.submit(job("invalid", "question", () => valid));
+  valid = false;
+  clock.advance(1_000);
+  assert.equal((await invalid).status, "cancelled");
+  const disabled = scheduler.submit(job("disabled"));
+  config.enabled = false;
+  clock.advance(1_000);
+  assert.equal((await disabled).status, "disabled");
+  assert.equal((await scheduler.submit(job("off"))).status, "disabled");
+  await scheduler.close();
+});
+test("分事件開關與靜音、重複 key、close 可重複且終止自己的工作", async () => {
+  const { scheduler, clock, config, calls, job } = fixture();
+  config.events.permission.enabled = false;
+  assert.equal((await scheduler.submit(job("p", "permission"))).status, "disabled");
+  config.events.question.sound = false;
+  const pending = scheduler.submit(job("q"));
+  assert.equal((await scheduler.submit(job("q"))).status, "cancelled");
+  clock.advance(0);
+  assert.equal(calls[0].sound, false);
+  const queued = scheduler.submit(job("queued"));
+  await scheduler.close();
+  await scheduler.close();
+  assert.equal(calls[0].signal.aborted, true);
+  assert.equal((await pending).status, "cancelled");
+  assert.equal((await queued).status, "cancelled");
+  assert.equal(clock.count(), 0);
+});
+test("部分成功、launcher 失敗不拋錯且不自動重試", async () => {
+  const { scheduler, clock, calls, job } = fixture();
+  const partial = scheduler.submit(job("partial"));
+  clock.advance(0);
+  calls[0].resolve({ code: "TOAST_FAILED", toast: false, sound: "played" });
+  assert.equal((await partial).status, "partial");
+  await flush();
+  clock.advance(60_000);
+  assert.equal(calls.length, 1);
+  await scheduler.close();
+  const broken = new NotificationScheduler({ available: true, code: "OK", launch: async () => { throw new Error("SECRET"); } },
+    defaults, () => {}, clock);
+  const failed = broken.submit(job("failed"));
+  clock.advance(0);
+  assert.deepEqual(await failed, { status: "failed", code: "LAUNCH_FAILED" });
+  await broken.close();
+});
