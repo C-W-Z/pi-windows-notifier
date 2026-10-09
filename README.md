@@ -4,9 +4,11 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-**Built for Windows. Zero dependencies. Customizable, security-first notifications and alert sounds for Pi.**
+**Built for Windows. Zero dependencies. Customizable, security-first notifications and alert sounds for [Pi](https://pi.dev).**
 
 Get a Windows notification when Pi needs your attention—or when it's finished responding. Shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed responses, even while you're looking at another window.
+
+**No need to use in WSL。**
 
 Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
 
@@ -51,9 +53,9 @@ pi remove npm:pi-windows-notifier
 
 The default toast title is **Pi**, and default messages are in English. You can change the title and message for each event in your config. Command messages are still in Traditional Chinese; there isn't a language switch.
 
-Permission notifications work with `@gotgenes/pi-permission-system`, including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
+Permission notifications work with [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system), including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
 
-Question notifications work with `ask_user_question` (including RPIV Lean) and `plan_mode_question`. One questionnaire gets one notification, not one per question. Ordinary questions written in a model's reply and manually opened settings dialogs don't count.
+Question notifications work with [`@juicesharp/rpiv-ask-user-question`](https://pi.dev/packages/@juicesharp/rpiv-ask-user-question) (including [`@ssk_dev/rpiv-ask-user-question-lean`](https://pi.dev/packages/@ssk_dev/rpiv-ask-user-question-lean)) and [`@narumitw/pi-plan-mode`](https://pi.dev/packages/@narumitw/pi-plan-mode). One questionnaire gets one notification, not one per question. Ordinary questions written in a model's reply and manually opened settings dialogs don't count.
 
 Response notifications wait until Pi has actually settled. They don't fire halfway through an automatic retry or continuation, and a failed tool call on its own doesn't count as a failed response.
 
