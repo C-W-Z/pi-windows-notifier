@@ -4,7 +4,7 @@
 
 Get a Windows notification when Pi needs your attention—or when it's finished responding. The extension shows a toast and plays a system sound for permission requests, structured questions, and completed, interrupted, or failed responses, even while you're looking at another window.
 
-Notifications stay on your machine and only tell you what happened. They don't include your questions, commands, file paths, or Pi's replies. The extension doesn't approve permissions or answer questions for you.
+Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
 
 [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
 
@@ -41,7 +41,7 @@ pi remove npm:pi-windows-notifier
 | `aborted` | The response was interrupted | Exclamation |
 | `failed` | The response ended in an error | Exclamation |
 
-The toast title is **Pi**. Notification text and the extension's command messages are currently in Traditional Chinese; there isn't a language setting yet.
+The default toast title is **Pi**, and default messages are in Traditional Chinese. You can change the title and message for each event in your config. Command messages are still in Traditional Chinese; there isn't a language switch.
 
 Permission notifications work with `@gotgenes/pi-permission-system`, including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
 
@@ -61,32 +61,124 @@ Some question packages also ring the terminal bell themselves. If you hear an ex
 
 ## Settings
 
-To change the defaults, create `~/.pi/agent/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\pi-windows-notifier\config.json` inside your user home folder.
+To change the defaults, create `~/.pi/agent/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\pi-windows-notifier\config.json` inside your user home folder. The extension doesn't create or edit this file, and it doesn't read project-level settings.
 
-The extension doesn't create or edit this file for you, and it doesn't read project-level settings. If the file doesn't exist, it uses these defaults:
+### Shared defaults and event overrides
+
+New settings use `schemaVersion: 2`. You only need to include the values you want to change. This example keeps the built-in title and sounds:
 
 ```json
 {
+  "schemaVersion": 2,
   "enabled": true,
+  "defaults": {
+    "toast": {
+      "enabled": true,
+      "title": "Pi"
+    },
+    "sound": {
+      "enabled": true,
+      "source": {
+        "type": "system",
+        "name": "Exclamation"
+      }
+    }
+  },
   "events": {
-    "permission": { "enabled": true, "sound": true },
-    "question": { "enabled": true, "sound": true },
-    "completed": { "enabled": true, "sound": true },
-    "aborted": { "enabled": true, "sound": true },
-    "failed": { "enabled": true, "sound": true }
+    "completed": {
+      "sound": {
+        "source": {
+          "type": "system",
+          "name": "Asterisk"
+        }
+      }
+    }
   }
 }
 ```
 
-You only need to include the values you want to change. For example, to keep completion toasts but turn off their sound:
+Settings are applied in this order: **built-in event defaults → your shared `defaults` → the event's settings**. For example, a title under `defaults.toast` applies to every event unless that event sets its own title.
+
+Without a config file, all channels are enabled, the title is Pi, messages describe the event in Traditional Chinese, and completion uses Asterisk while other events use Exclamation.
+
+- Set the top-level `enabled` to `false` to turn all notifications off.
+- Set `events.<event>.enabled` to `false` to turn that event off.
+- `toast.enabled` and `sound.enabled` let you use either channel on its own. If both are off, no helper starts.
+- `toast.title` and `toast.message` set the text shown in the toast.
+- `sound.source` chooses a sound. Only `type: "system"` is supported, with `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`. Names are case-sensitive. When setting `source`, include both `type` and `name`; it replaces the source as a whole.
+
+### Custom title and message
+
+For example, keep the completion toast but change its text and turn off its sound:
 
 ```json
-{ "events": { "completed": { "sound": false } } }
+{
+  "schemaVersion": 2,
+  "events": {
+    "completed": {
+      "toast": {
+        "title": "Pi — done",
+        "message": "Your response is ready."
+      },
+      "sound": {
+        "enabled": false
+      }
+    }
+  }
+}
 ```
 
-The top-level `enabled` switch controls everything. Each event's `enabled` switch controls both its toast and sound; `sound` only controls its sound.
+Text is used exactly as written—there are no templates or substitutions from your session. Titles can contain up to 128 UTF-16 code units and messages up to 512; an emoji may count as two. Both must be nonblank, single-line strings without control characters or invalid XML characters.
 
-After editing the file, run `/windows-notifier reload`. Unknown fields, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
+Your text appears in Windows notifications, so don't put secrets in it. It isn't shown by `status` or error messages.
+
+### Toast only or sound only
+
+To turn off sounds for all events:
+
+```json
+{
+  "schemaVersion": 2,
+  "defaults": {
+    "sound": {
+      "enabled": false
+    }
+  }
+}
+```
+
+To play sounds without showing toasts:
+
+```json
+{
+  "schemaVersion": 2,
+  "defaults": {
+    "toast": {
+      "enabled": false
+    }
+  }
+}
+```
+
+You can use the same channel switches under an individual event. Event settings override shared defaults, but they can't override a disabled top-level or event `enabled` switch.
+
+### Existing configs still work
+
+The old unversioned format is still supported:
+
+```json
+{
+  "events": {
+    "completed": {
+      "sound": false
+    }
+  }
+}
+```
+
+It keeps its original behavior and is converted in memory, without rewriting your file. New channel objects require `schemaVersion: 2`; don't mix old sound booleans with v2 objects.
+
+After editing the file, run `/windows-notifier reload`. Unknown fields, unsupported versions or sound sources, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
 
 ## Commands
 
@@ -99,7 +191,7 @@ Run these inside Pi:
 /windows-notifier test permission
 ```
 
-- `status` shows the active settings, backend status, queue counters, and diagnostic codes—not your session content.
+- `status` shows channel switches, sound choices, backend status, queue counters, and diagnostic codes—not your custom text or session content.
 - `reload` reads the config again and cancels old notification work.
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
 
@@ -110,7 +202,7 @@ Run these inside Pi:
 This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, or custom sound files.
 
 - PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
-- The helper runs without a shell. It receives only an event type and a sound switch, validates both, and builds the toast from fixed strings. It doesn't interpolate your content into PowerShell commands or XML.
+- The helper runs without a shell. It receives only the event type, validated channel settings, and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
 - The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
 - Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
 - It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
@@ -124,7 +216,7 @@ These safeguards assume that Windows' system directories, Pi's startup environme
 
 Windows still has the final say. Do Not Disturb, notification settings, your sound scheme, and muted audio can suppress a toast or sound even after the API accepts it.
 
-The sender may appear as **PowerShell** because the extension uses the `Microsoft.Windows.PowerShell` AppID. The toast itself says **Pi**. Toast audio is disabled and the system sound is played separately to avoid a duplicate sound from this backend. If one fails, the other is still attempted. There is no fallback notification or audio player.
+The sender may appear as **PowerShell** because the extension uses the `Microsoft.Windows.PowerShell` AppID. The toast title defaults to **Pi**, or the title you choose. Toast audio is disabled and the system sound is played separately to avoid a duplicate sound from this backend. If one fails, the other is still attempted. There is no fallback notification or audio player.
 
 Use `/windows-notifier status` to check these codes:
 

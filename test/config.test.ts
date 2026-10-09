@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaults, parseConfig, loadConfig, CONFIG_LIMIT } from "../src/config.ts";
@@ -79,6 +79,15 @@ test("文字長度與 XML 字元驗證；引號、指令樣式文字與 emoji �
   for (const toast of [{ title: "" }, { title: " " }, { title: "x".repeat(129) }, { message: "x".repeat(513) },
     { title: null }, { message: "line\nline" }, { message: "\u0000" }, { message: "\ud800" }, { message: "\uffff" }]) {
     assert.equal(parseConfig({ schemaVersion: 2, defaults: { toast } }).ok, false);
+  }
+});
+test("雙語 README 的新舊 JSON 範例皆可解析，且預設範例等同內建行為", () => {
+  for (const name of ["README.md", "README.zh-TW.md"]) {
+    const document = readFileSync(new URL("../" + name, import.meta.url), "utf8");
+    const examples = [...document.matchAll(/```json\n([\s\S]*?)\n```/gu)];
+    assert.equal(examples.length, 5);
+    for (const [, text] of examples) assert.equal(parseConfig(JSON.parse(text)).ok, true);
+    assert.deepEqual(parseConfig(JSON.parse(examples[0][1])).config, defaults());
   }
 });
 test("讀取有界檔案，不存在使用預設，錯誤停用", () => {
