@@ -63,9 +63,9 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 想改預設行為時，請自行建立 `~/.pi/agent/pi-windows-notifier/config.json`。在 Windows 上，就是使用者家目錄裡的 `.pi\agent\pi-windows-notifier\config.json`。套件不會替你建立或修改這個檔案，也不讀專案內的設定。
 
-### 共用預設與事件覆寫
+### 完整設定範例
 
-新格式使用 `schemaVersion: 2`，只要寫想改的欄位就好。下面這份範例會保留內建標題與音效：
+下面列出所有支援的欄位和五種事件，可以直接複製作為起點。不過，**實際只要保留想修改的欄位，加上 `schemaVersion: 2` 就好**。每個事件都覆寫了共用訊息，因此這份範例的效果等同內建預設。
 
 ```json
 {
@@ -74,7 +74,8 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
   "defaults": {
     "toast": {
       "enabled": true,
-      "title": "Pi"
+      "title": "Pi",
+      "message": "Pi needs your attention."
     },
     "sound": {
       "enabled": true,
@@ -85,100 +86,72 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
     }
   },
   "events": {
+    "permission": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Permission approval needed" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
+    "question": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Waiting for your answer" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
     "completed": {
-      "sound": {
-        "source": {
-          "type": "system",
-          "name": "Asterisk"
-        }
-      }
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response complete" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Asterisk" } }
+    },
+    "aborted": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response interrupted" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
+    "failed": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response failed" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
     }
   }
 }
 ```
 
-設定會依序套用：**內建事件預設 → 共用的 `defaults` → 個別事件設定**。例如，把標題寫在 `defaults.toast` 裡，所有事件就會共用它；某個事件也能另外設定自己的標題。
+### 欄位與覆寫規則
 
-沒有設定檔時，所有通道都會開啟，標題是 Pi，訊息使用上方表格的預設文字。完成通知使用 Asterisk，其他事件使用 Exclamation。
+設定依序套用：**內建事件預設 → 共用的 `defaults` → 個別 `events.<事件>` 設定**。沒寫的欄位沿用前一層。例如，`defaults.toast.message` 會讓所有事件共用同一則訊息，除非事件另外設定自己的訊息；省略它就能保留內建的各事件文字。
 
-- 最外層的 `enabled` 是總開關。
-- `events.<事件>.enabled` 可以關閉整個事件。
-- `toast.enabled` 和 `sound.enabled` 各自控制彈窗與音效，可以只開其中一個；兩個都關閉時，不會啟動 helper。
-- `toast.title` 和 `toast.message` 設定彈窗的標題與訊息。
-- `sound.source` 選擇音效。目前只支援 `type: "system"`，名稱可以是 `Asterisk`、`Beep`、`Exclamation`、`Hand` 或 `Question`，大小寫要一致。設定 `source` 時必須一起提供 `type` 和 `name`，它會整組取代原本的來源。這些名稱選的是 Windows 系統音效事件，套件本身沒有附音效檔。實際播放的聲音取決於目前的 Windows 音效配置；不同事件可能被設成播放同一個聲音，也可能沒有對應音效，所以聽起來可能一樣。你可以在 Windows「音效」設定中查看或修改這些對應。
+| 欄位 | 用途 |
+|---|---|
+| `schemaVersion` | 使用這個格式時設為 `2` |
+| `enabled` | 總開關，`false` 關閉所有通知 |
+| `defaults` | 共用的 `toast` 和 `sound` 設定，沒有 `defaults.enabled` |
+| `events.<事件>` | 可設定 `permission`、`question`、`completed`、`aborted`、`failed` |
+| `events.<事件>.enabled` | 開啟或關閉整個事件 |
+| `toast.enabled` | 彈窗開關 |
+| `toast.title` | 固定的通知標題 |
+| `toast.message` | 固定的通知訊息 |
+| `sound.enabled` | 音效開關 |
+| `sound.source.type` | 目前只支援 `"system"` |
+| `sound.source.name` | `Asterisk`、`Beep`、`Exclamation`、`Hand`、`Question`，大小寫要一致 |
 
-### 自訂標題與訊息
+`toast` 和 `sound` 欄位都能放在 `defaults` 或個別事件底下。**完整範例已寫出每個事件的所有欄位，只改 `defaults` 不會改到已被事件覆寫的值。** 想讓事件沿用共用設定，請刪除該事件底下對應的欄位。設定 `sound.source` 時必須一起提供 `type` 和 `name`，它會整組取代原本的來源。
 
-例如，保留完成彈窗，但改成自己的文字並關掉音效：
+- **只要彈窗：**將 `sound.enabled` 設為 `false`、`toast.enabled` 設為 `true`。
+- **只要音效：**將 `toast.enabled` 設為 `false`、`sound.enabled` 設為 `true`。
+- 兩個通道都關閉時，不啟動 helper。事件可以覆寫共用通道開關，但不能繞過已關閉的總開關或事件開關。
 
-```json
-{
-  "schemaVersion": 2,
-  "events": {
-    "completed": {
-      "toast": {
-        "title": "Pi — 完成",
-        "message": "工作完成了，回來看看吧"
-      },
-      "sound": {
-        "enabled": false
-      }
-    }
-  }
-}
-```
+沒有設定檔時，所有事件與通道都開啟，標題是 Pi，訊息是英文。完成通知使用 Asterisk，其他事件使用 Exclamation。
 
-文字會照你寫的內容顯示，不會從 session 帶入變數，也沒有模板替換。標題最多 128 個 UTF-16 code units，訊息最多 512 個；emoji 可能算兩個。兩者都必須是非空白的單行字串，不能包含控制字元或不合法的 XML 字元。
+### 文字與音效限制
 
-自訂文字會出現在 Windows 通知裡，請不要放敏感資訊。它不會顯示在 `status` 或錯誤提示中。
+文字會照你寫的內容顯示，不會從 session 帶入變數，也沒有模板替換。標題最多 128 個 UTF-16 code units，訊息最多 512 個；emoji 可能算兩個。兩者都必須是非空白的單行字串，不能包含控制字元或不合法的 XML 字元。自訂文字會出現在 Windows 通知裡，請不要放敏感資訊；它不會顯示在 `status` 或錯誤提示中。
 
-### 只要彈窗，或只要音效
+音效名稱選的是 **Windows 系統音效事件**，不是套件內附的不同音效檔。實際聲音取決於 Windows 音效配置；不同事件可能共用同一個聲音，也可能沒有對應音效。你可以在 Windows「音效」設定中查看或修改對應，但修改也會影響使用相同事件的其他程式。目前不支援自訂音效檔。
 
-想讓所有事件都不要播放音效：
-
-```json
-{
-  "schemaVersion": 2,
-  "defaults": {
-    "sound": {
-      "enabled": false
-    }
-  }
-}
-```
-
-想只播放音效，不跳彈窗：
-
-```json
-{
-  "schemaVersion": 2,
-  "defaults": {
-    "toast": {
-      "enabled": false
-    }
-  }
-}
-```
-
-同樣的通道開關也能寫在個別事件底下。事件設定會覆寫共用預設，但不能繞過已關閉的總開關或事件 `enabled`。
-
-### 舊設定不用立刻重寫
-
-原本沒有版本欄位的格式仍然能用：
-
-```json
-{
-  "events": {
-    "completed": {
-      "sound": false
-    }
-  }
-}
-```
-
-它會保留原本的行為，只在記憶體裡轉換，不會修改你的設定檔。要使用新的通道物件，請加上 `schemaVersion: 2`；不要把舊的音效 boolean 和 v2 物件混在一起。
+### 套用修改與舊格式相容
 
 修改後執行 `/windows-notifier reload`。如果有未知欄位、不支援的版本或音效來源、值不合法、檔案無法讀取或超過 16 KiB，通知會先停用；修正後再 reload 即可。錯誤提示不會印出設定檔內容。
+
+原本沒有版本欄位、音效使用 boolean 的格式（例如 `events.completed.sound: false`）仍能使用，只在記憶體裡轉換，不會修改你的檔案。要使用新的通道物件，請加上 `schemaVersion: 2`；不要把舊的音效 boolean 和 v2 物件混在一起。
 
 ## 指令
 

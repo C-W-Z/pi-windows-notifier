@@ -63,9 +63,9 @@ Some question packages also ring the terminal bell themselves. If you hear an ex
 
 To change the defaults, create `~/.pi/agent/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\pi-windows-notifier\config.json` inside your user home folder. The extension doesn't create or edit this file, and it doesn't read project-level settings.
 
-### Shared defaults and event overrides
+### Complete config
 
-New settings use `schemaVersion: 2`. You only need to include the values you want to change. This example keeps the built-in title and sounds:
+This example includes every supported field and all five events. You can copy it as a starting point, but **you only need to keep the fields you want to change**, along with `schemaVersion: 2`. Each event overrides the shared message below, so the example behaves like the built-in defaults.
 
 ```json
 {
@@ -74,7 +74,8 @@ New settings use `schemaVersion: 2`. You only need to include the values you wan
   "defaults": {
     "toast": {
       "enabled": true,
-      "title": "Pi"
+      "title": "Pi",
+      "message": "Pi needs your attention."
     },
     "sound": {
       "enabled": true,
@@ -85,100 +86,72 @@ New settings use `schemaVersion: 2`. You only need to include the values you wan
     }
   },
   "events": {
+    "permission": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Permission approval needed" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
+    "question": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Waiting for your answer" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
     "completed": {
-      "sound": {
-        "source": {
-          "type": "system",
-          "name": "Asterisk"
-        }
-      }
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response complete" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Asterisk" } }
+    },
+    "aborted": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response interrupted" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
+    },
+    "failed": {
+      "enabled": true,
+      "toast": { "enabled": true, "title": "Pi", "message": "Response failed" },
+      "sound": { "enabled": true, "source": { "type": "system", "name": "Exclamation" } }
     }
   }
 }
 ```
 
-Settings are applied in this order: **built-in event defaults → your shared `defaults` → the event's settings**. For example, a title under `defaults.toast` applies to every event unless that event sets its own title.
+### Fields and override rules
 
-Without a config file, all channels are enabled, the title is Pi, messages describe the event in English, and completion uses Asterisk while other events use Exclamation.
+Settings are applied in this order: **built-in event defaults → shared `defaults` → individual `events.<event>` settings**. Omitted fields inherit the previous layer. For example, `defaults.toast.message` supplies one message for all events unless an event sets its own message; omit it to keep the built-in event-specific messages.
 
-- Set the top-level `enabled` to `false` to turn all notifications off.
-- Set `events.<event>.enabled` to `false` to turn that event off.
-- `toast.enabled` and `sound.enabled` let you use either channel on its own. If both are off, no helper starts.
-- `toast.title` and `toast.message` set the text shown in the toast.
-- `sound.source` chooses a sound. Only `type: "system"` is supported, with `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`. Names are case-sensitive. When setting `source`, include both `type` and `name`; it replaces the source as a whole. These names select Windows system sound events; the package doesn't bundle separate audio files. The sound you hear depends on your active Windows sound scheme: different event names can be mapped to the same sound, or to no sound, so some choices may sound identical. You can review or change these mappings in the Windows Sound settings.
+| Field | What it does |
+|---|---|
+| `schemaVersion` | Set to `2` for this format |
+| `enabled` | Master switch; `false` turns all notifications off |
+| `defaults` | Shared `toast` and `sound` settings; there is no `defaults.enabled` |
+| `events.<event>` | Overrides for `permission`, `question`, `completed`, `aborted`, or `failed` |
+| `events.<event>.enabled` | Turns that entire event on or off |
+| `toast.enabled` | Turns the toast on or off |
+| `toast.title` | Static notification title |
+| `toast.message` | Static notification message |
+| `sound.enabled` | Turns the sound on or off |
+| `sound.source.type` | Only `"system"` is supported |
+| `sound.source.name` | `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`; case-sensitive |
 
-### Custom title and message
+The `toast` and `sound` fields can appear under either `defaults` or an individual event. **The complete example explicitly sets every event field, so changing `defaults` alone won't change those overrides.** Remove the corresponding event fields if you want them to inherit shared settings. When setting `sound.source`, include both `type` and `name`; it replaces the source as a whole.
 
-For example, keep the completion toast but change its text and turn off its sound:
+- **Toast only:** set `sound.enabled` to `false` and `toast.enabled` to `true`.
+- **Sound only:** set `toast.enabled` to `false` and `sound.enabled` to `true`.
+- If both channels are off, no helper starts. Event settings can override shared channel switches, but can't override a disabled master or event switch.
 
-```json
-{
-  "schemaVersion": 2,
-  "events": {
-    "completed": {
-      "toast": {
-        "title": "Pi — done",
-        "message": "Your response is ready."
-      },
-      "sound": {
-        "enabled": false
-      }
-    }
-  }
-}
-```
+Without a config file, all events and channels are enabled, the title is Pi, and messages are in English. Completion uses Asterisk; the other events use Exclamation.
 
-Text is used exactly as written—there are no templates or substitutions from your session. Titles can contain up to 128 UTF-16 code units and messages up to 512; an emoji may count as two. Both must be nonblank, single-line strings without control characters or invalid XML characters.
+### Text and sound limits
 
-Your text appears in Windows notifications, so don't put secrets in it. It isn't shown by `status` or error messages.
+Text is used exactly as written—there are no templates or substitutions from your session. Titles can contain up to 128 UTF-16 code units and messages up to 512; an emoji may count as two. Both must be nonblank, single-line strings without control characters or invalid XML characters. Your text appears in Windows notifications, so don't put secrets in it. It isn't shown by `status` or error messages.
 
-### Toast only or sound only
+Sound names select **Windows system sound events**, not separate audio files bundled with the package. The sound you hear depends on your Windows sound scheme: different events can use the same sound, or have no sound assigned. You can review or change these mappings in the Windows Sound settings; changes also affect other apps using those events. Custom sound files aren't supported.
 
-To turn off sounds for all events:
-
-```json
-{
-  "schemaVersion": 2,
-  "defaults": {
-    "sound": {
-      "enabled": false
-    }
-  }
-}
-```
-
-To play sounds without showing toasts:
-
-```json
-{
-  "schemaVersion": 2,
-  "defaults": {
-    "toast": {
-      "enabled": false
-    }
-  }
-}
-```
-
-You can use the same channel switches under an individual event. Event settings override shared defaults, but they can't override a disabled top-level or event `enabled` switch.
-
-### Existing configs still work
-
-The old unversioned format is still supported:
-
-```json
-{
-  "events": {
-    "completed": {
-      "sound": false
-    }
-  }
-}
-```
-
-It keeps its original behavior and is converted in memory, without rewriting your file. New channel objects require `schemaVersion: 2`; don't mix old sound booleans with v2 objects.
+### Apply changes and older configs
 
 After editing the file, run `/windows-notifier reload`. Unknown fields, unsupported versions or sound sources, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
+
+The old unversioned format, with a boolean such as `events.completed.sound: false`, still works and is converted in memory without rewriting your file. New channel objects require `schemaVersion: 2`; don't mix old sound booleans with v2 objects.
 
 ## Commands
 

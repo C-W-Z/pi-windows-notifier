@@ -96,13 +96,28 @@ test("文字長度與 XML 字元驗證；引號、指令樣式文字與 emoji �
     assert.equal(parseConfig({ schemaVersion: 2, defaults: { toast } }).ok, false);
   }
 });
-test("雙語 README 的新舊 JSON 範例皆可解析，且預設範例等同內建行為", () => {
+test("雙語 README 的完整設定涵蓋所有欄位與五種事件，且等同內建行為", () => {
   for (const name of ["README.md", "README.zh-TW.md"]) {
     const document = readFileSync(new URL("../" + name, import.meta.url), "utf8");
     const examples = [...document.matchAll(/```json\n([\s\S]*?)\n```/gu)];
-    assert.equal(examples.length, 5);
-    for (const [, text] of examples) assert.equal(parseConfig(JSON.parse(text)).ok, true);
-    assert.deepEqual(parseConfig(JSON.parse(examples[0][1])).config, defaults());
+    assert.equal(examples.length, 1);
+    const input = JSON.parse(examples[0][1]);
+    assert.equal(input.schemaVersion, 2);
+    assert.equal(input.enabled, true);
+    const assertChannels = (value: typeof input.defaults) => {
+      assert.deepEqual(Object.keys(value.toast).sort(), ["enabled", "message", "title"]);
+      assert.deepEqual(Object.keys(value.sound).sort(), ["enabled", "source"]);
+      assert.deepEqual(Object.keys(value.sound.source).sort(), ["name", "type"]);
+    };
+    assertChannels(input.defaults);
+    assert.deepEqual(Object.keys(input.events).sort(), Object.keys(defaults().events).sort());
+    for (const event of Object.values(input.events) as Array<typeof input.defaults>) {
+      assert.equal(event.enabled, true);
+      assertChannels(event);
+    }
+    const result = parseConfig(input);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.config, defaults());
   }
 });
 test("讀取有界檔案，不存在使用預設，錯誤停用", () => {
