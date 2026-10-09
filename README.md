@@ -184,7 +184,7 @@ The old unversioned format, with a boolean such as `events.completed.sound: fals
 
 ## Commands
 
-Run these inside Pi. After `/windows-notifier `, press **Tab** to complete `status`, `reload`, or `test`. After `test `, Tab completes the event name; partial prefixes such as `test co` also work.
+Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`, `reload`, or `test`, use **↑/↓** to choose, then press **Tab** to accept. Completing `test` adds a space automatically, so you can keep pressing **Tab** to show and accept an event name without typing a space. Partial prefixes such as `test co` also work.
 
 ```text
 /windows-notifier status

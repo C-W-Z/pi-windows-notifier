@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { defaults, loadConfig, type ConfigResult } from "./config.ts";
+import { notifierArgumentCompletions, withNotifierCompletions } from "./completion.ts";
 import { createWindowsBackend, windowsPaths, type Backend } from "./launcher.ts";
 import { NotificationScheduler, systemClock, type Clock, type Submission } from "./scheduler.ts";
 import { NotificationState } from "./state.ts";
@@ -107,7 +108,10 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
     if (!target || target.disposed || target.backendCode === "ENV_UNSUPPORTED") return;
     try { handler(target.state); } catch { diagnose(target, "EVENT_INVALID"); }
   };
-  pi.on("session_start", async (_event, context) => { await transition(() => start(context)); });
+  pi.on("session_start", async (_event, context) => {
+    if (context.mode === "tui" && context.hasUI) context.ui.addAutocompleteProvider(withNotifierCompletions);
+    await transition(() => start(context));
+  });
   pi.on("session_shutdown", async () => { await transition(stop); });
   pi.on("tool_execution_start", event => { observe(state => state.toolStart(event)); });
   pi.on("tool_execution_end", event => { observe(state => state.toolEnd(event)); });
@@ -121,19 +125,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
 
   pi.registerCommand("windows-notifier", {
     description: "Windows 通知：status、reload、test [permission|question|completed|aborted|failed]",
-    getArgumentCompletions: prefix => {
-      const leading = prefix.match(/^\s*/u)![0];
-      const argument = prefix.slice(leading.length);
-      if (!/\s/u.test(argument)) {
-        const matches = ["status", "reload", "test"].filter(value => value.startsWith(argument));
-        return matches.length ? matches.map(value => ({ value: leading + value, label: value })) : null;
-      }
-      const match = argument.match(/^test(\s+)(\S*)$/u);
-      if (!match) return null;
-      const matches = KINDS.filter(kind => kind.startsWith(match[2]));
-      // Pi 會替換整段 argument prefix；必須保留 test 與空白，不只回傳事件名稱。
-      return matches.length ? matches.map(kind => ({ value: leading + "test" + match[1] + kind, label: kind })) : null;
-    },
+    getArgumentCompletions: notifierArgumentCompletions,
     handler: async (args, context) => {
       const parts = args.trim().split(/\s+/u);
       if (parts.length === 1 && parts[0] === "reload") {

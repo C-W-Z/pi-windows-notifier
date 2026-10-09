@@ -184,7 +184,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 ## 指令
 
-在 Pi 裡執行。輸入 `/windows-notifier ` 後按 **Tab**，可以補全 `status`、`reload` 或 `test`；輸入 `test ` 後，Tab 會補全事件名稱，也支援 `test co` 這類前綴。
+在 Pi 裡執行。輸入 `/windows-notifier ` 後按 **Tab**，會列出 `status`、`reload` 或 `test`；用 **↑/↓** 選擇，再按 **Tab** 接受。補完 `test` 會自動加上空白，接著連按 **Tab** 即可列出並接受事件名稱，不必手動輸入空白；也支援 `test co` 這類前綴。
 
 ```text
 /windows-notifier status

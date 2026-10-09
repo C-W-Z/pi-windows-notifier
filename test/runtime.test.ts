@@ -17,10 +17,12 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   const calls: Array<{ kind: string; payload: NotificationPayload; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
   let command: (args: string, context: ExtensionCommandContext) => Promise<void>;
   let completions: GetCompletions;
+  const providers: Parameters<ExtensionContext["ui"]["addAutocompleteProvider"]>[0][] = [];
   let makeCount = 0;
   let result: ConfigResult = options.result ?? { ok: true, config: defaults() };
   const context = { mode: options.mode ?? "tui", hasUI: !["print", "json"].includes(options.mode ?? "tui"),
-    ui: { notify: (message: string) => messages.push(message) } } as unknown as ExtensionContext;
+    ui: { notify: (message: string) => messages.push(message),
+      addAutocompleteProvider: (factory: typeof providers[number]) => providers.push(factory) } } as unknown as ExtensionContext;
   const api = {
     on(name: string, handler: Hook) {
       const items = handlers.get(name) ?? [];
@@ -46,7 +48,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   registerNotifier(api, { platform: options.platform ?? "win32", arch: "x64", clock, readConfig: () => result,
     backend: () => { makeCount++; return backend; } });
   return {
-    clock, calls, messages, listeners,
+    clock, calls, messages, listeners, providers,
     makeCount: () => makeCount,
     setResult: (next: ConfigResult) => { result = next; },
     hook: async (name: string, event: unknown = {}) => {
@@ -63,9 +65,9 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
 test("指令參數補全涵蓋子指令、事件前綴及完整替換值，不啟動 backend", async () => {
   const h = harness();
   assert.deepEqual(await h.complete(""), [
-    { value: "status", label: "status" }, { value: "reload", label: "reload" }, { value: "test", label: "test" },
+    { value: "status", label: "status" }, { value: "reload", label: "reload" }, { value: "test ", label: "test" },
   ]);
-  assert.deepEqual(await h.complete("te"), [{ value: "test", label: "test" }]);
+  assert.deepEqual(await h.complete("te"), [{ value: "test ", label: "test" }]);
   assert.deepEqual(await h.complete("r"), [{ value: "reload", label: "reload" }]);
   assert.deepEqual(await h.complete("  st"), [{ value: "  status", label: "status" }]);
   assert.deepEqual(await h.complete("test "), ["permission", "question", "completed", "aborted", "failed"]
@@ -74,6 +76,7 @@ test("指令參數補全涵蓋子指令、事件前綴及完整替換值，不�
   assert.deepEqual(await h.complete(" test   q"), [{ value: " test   question", label: "question" }]);
   assert.equal(h.makeCount(), 0);
   assert.equal(h.calls.length, 0);
+  assert.equal(h.providers.length, 0);
 });
 test("無效或過多的指令參數不補全；已啟動 session 的補全不產生通知", async () => {
   const h = harness();
@@ -89,6 +92,15 @@ test("無效或過多的指令參數不補全；已啟動 session 的補全不�
   await h.tick();
   assert.equal(h.calls.length, 0);
   assert.equal(h.messages.length, 0);
+  await h.hook("session_shutdown");
+});
+test("TUI session 安裝補全 wrapper，設定 reload 不重複安裝", async () => {
+  const h = harness();
+  await h.hook("session_start");
+  assert.equal(h.providers.length, 1);
+  await h.command("reload");
+  assert.equal(h.providers.length, 1);
+  assert.equal(h.calls.length, 0);
   await h.hook("session_shutdown");
 });
 test("factory 不啟動 backend，session 重建與 shutdown 不累積 listener 或 timer", async () => {
@@ -154,6 +166,7 @@ test("RPC／print／JSON／非 Windows 不通知也不建立 backend", async () 
     await h.command("test");
     assert.equal(h.calls.length, 0);
     assert.equal(h.makeCount(), 0);
+    assert.equal(h.providers.length, options.mode === undefined ? 1 : 0);
     await h.hook("session_shutdown");
   }
 });
