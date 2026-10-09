@@ -23,7 +23,7 @@
   ],
   "files": [
     "src/**/*.ts",
-    "src/windows-notify.ps1",
+    "src/*.ps1",
     "README.md",
     "README.zh-TW.md",
     "docs/verification.md",

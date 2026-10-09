@@ -1,7 +1,7 @@
 import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { KINDS, SYSTEM_SOUNDS, TITLE_LIMIT, MESSAGE_LIMIT, isRecord, onlyKeys, validText,
+import { KINDS, TITLE_LIMIT, MESSAGE_LIMIT, isRecord, onlyKeys, validText, validSoundSource,
   type NotificationKind, type ToastConfig, type SoundConfig } from "./types.ts";
 
 export interface EventConfig { enabled: boolean; toast: ToastConfig; sound: SoundConfig }
@@ -48,10 +48,9 @@ function applyChannels(target: EventConfig, value: Record<string, unknown>): boo
     }
     if (Object.hasOwn(sound, "source")) {
       const source = sound.source;
-      if (!isRecord(source) || !onlyKeys(source, ["type", "name"]) ||
-          source.type !== "system" || !SYSTEM_SOUNDS.includes(source.name as SoundConfig["source"]["name"])) return false;
-      // source 作為完整單位覆寫，避免未來不同來源類型留下混合欄位。
-      target.sound.source = { type: "system", name: source.name as SoundConfig["source"]["name"] };
+      if (!validSoundSource(source)) return false;
+      // source 作為完整單位覆寫，不合併不同來源類型的欄位。
+      target.sound.source = { ...source };
     }
   }
   return true;

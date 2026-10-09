@@ -2,7 +2,7 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-Get a Windows notification when Pi needs your attention—or when it's finished responding. The extension shows a toast and plays a system sound for permission requests, structured questions, and completed, interrupted, or failed responses, even while you're looking at another window.
+Get a Windows notification when Pi needs your attention—or when it's finished responding. The extension shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed, interrupted, or failed responses, even while you're looking at another window.
 
 Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
 
@@ -67,7 +67,7 @@ The new path takes priority. Only when it doesn't exist does the extension read 
 
 ### Complete config
 
-This example includes every supported field and all five events. You can copy it as a starting point, but **you only need to keep the fields you want to change**, along with `schemaVersion: 2`. Each event overrides the shared message below, so the example behaves like the built-in defaults.
+This example includes the system-sound fields and all five events; file sounds are shown separately below. You can copy it as a starting point, but **you only need to keep the fields you want to change**, along with `schemaVersion: 2`. Each event overrides the shared message below, so the example behaves like the built-in defaults.
 
 ```json
 {
@@ -132,10 +132,11 @@ Settings are applied in this order: **built-in event defaults → shared `defaul
 | `toast.title` | Static notification title |
 | `toast.message` | Static notification message |
 | `sound.enabled` | Turns the sound on or off |
-| `sound.source.type` | Only `"system"` is supported |
-| `sound.source.name` | `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`; case-sensitive |
+| `sound.source.type` | `"system"` for Windows sound events, or `"file"` for a local WAV |
+| `sound.source.name` | Required for `"system"`: `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`; case-sensitive |
+| `sound.source.path` | Required for `"file"`: an absolute local WAV path, up to 1024 UTF-16 code units |
 
-The `toast` and `sound` fields can appear under either `defaults` or an individual event. **The complete example explicitly sets every event field, so changing `defaults` alone won't change those overrides.** Remove the corresponding event fields if you want them to inherit shared settings. When setting `sound.source`, include both `type` and `name`; it replaces the source as a whole.
+The `toast` and `sound` fields can appear under either `defaults` or an individual event. **The complete example explicitly sets every event field, so changing `defaults` alone won't change those overrides.** Remove the corresponding event fields if you want them to inherit shared settings. When setting `sound.source`, include `type` and either `name` (system) or `path` (file), never both; it replaces the source as a whole.
 
 - **Toast only**: set `sound.enabled` to `false` and `toast.enabled` to `true`.
 - **Sound only**: set `toast.enabled` to `false` and `sound.enabled` to `true`.
@@ -147,7 +148,33 @@ Without a config file, all events and channels are enabled, the title is Pi, and
 
 Text is used exactly as written—there are no templates or substitutions from your session. Titles can contain up to 128 UTF-16 code units and messages up to 512; an emoji may count as two. Both must be nonblank, single-line strings without control characters or invalid XML characters. Your text appears in Windows notifications, so don't put secrets in it. It isn't shown by `status` or error messages.
 
-Sound names select **Windows system sound events**, not separate audio files bundled with the package. The sound you hear depends on your Windows sound scheme: different events can use the same sound, or have no sound assigned. You can review or change these mappings in the Windows Sound settings; changes also affect other apps using those events. Custom sound files aren't supported.
+Sound names select **Windows system sound events**, not separate audio files bundled with the package. The sound you hear depends on your Windows sound scheme: different events can use the same sound, or have no sound assigned. You can review or change these mappings in the Windows Sound settings; changes also affect other apps using those events. Choosing a file source changes only this extension, not your Windows sound scheme.
+
+### Custom WAV sounds
+
+For example, use your own sound when a response completes:
+
+```json
+{
+  "schemaVersion": 2,
+  "events": {
+    "completed": {
+      "sound": {
+        "source": { "type": "file", "path": "C:/Users/you/Sounds/done.wav" }
+      }
+    }
+  }
+}
+```
+
+Use the same `sound.source` object under `defaults` to share a file across events, or choose different files for each event. Remove existing event-specific sources if you want them to inherit `defaults`.
+
+- Supply an absolute path on a local **fixed drive**, such as `C:/Sounds/done.wav`. Forward slashes work and avoid JSON backslash escaping; with backslashes, write `C:\Sounds\done.wav` as `"C:\\Sounds\\done.wav"` in JSON.
+- Relative paths, `~`, environment-variable expansion, URLs, UNC paths, mapped network drives, device paths, alternate data streams, and reparse points (including ancestor junctions/symlinks) are not supported.
+- Files must be RIFF PCM WAV: mono or stereo, 8- or 16-bit, 8–48 kHz, at most **5 seconds** and **5 MiB**. MP3, compressed WAV, and WAV extensible are not supported. Renaming an MP3 to `.wav` won't work.
+- There is no per-sound volume setting, looping, external player, or bundled audio. Use audio you trust and have permission to use.
+- Paths are validated on reload; files are read and checked only when an enabled sound is actually submitted. A missing, unreadable, unsupported, or oversized file returns `SOUND_FAILED`; the toast is still attempted. There is no fallback to a system sound.
+- File paths are sent to the fixed helper through stdin, not command arguments, and aren't printed by `status` or error messages.
 
 ### Apply changes and older configs
 
@@ -166,7 +193,7 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to complete `stat
 /windows-notifier test permission
 ```
 
-- `status` shows channel switches, sound choices, backend status, queue counters, and diagnostic codes—not your custom text or session content.
+- `status` shows channel switches, sound choices, backend status, queue counters, and diagnostic codes—not your custom text, file paths, or session content.
 - `reload` reads the config again and cancels old notification work.
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
 
@@ -178,7 +205,7 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to complete `stat
 
 Windows still has the final say. Do Not Disturb, notification settings, your sound scheme, and muted audio can suppress a toast or sound even after the API accepts it.
 
-The sender may appear as **PowerShell** because the extension uses the `Microsoft.Windows.PowerShell` AppID. The toast title defaults to **Pi**, or the title you choose. Toast audio is disabled and the system sound is played separately to avoid a duplicate sound from this backend. If one fails, the other is still attempted. There is no fallback notification or audio player.
+The sender may appear as **PowerShell** because the extension uses the `Microsoft.Windows.PowerShell` AppID. The toast title defaults to **Pi**, or the title you choose. Toast audio is disabled and the selected sound is played separately to avoid a duplicate sound from this backend. If one fails, the other is still attempted. There is no fallback notification or audio player.
 
 Use `/windows-notifier status` to check these codes:
 
@@ -197,11 +224,12 @@ Automatic errors show at most one terminal warning per minute. Status uses fixed
 
 ## Privacy and process safety
 
-This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, or custom sound files.
+This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, downloads, or bundled sound files.
 
 - PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
-- The helper runs without a shell. It receives only the event type, validated channel settings, and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
+- The helper runs without a shell. It receives only the event type, validated channel settings (including a local WAV path when configured), and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
 - The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
+- WAV files are checked for local-drive paths and reparse points, read into size-limited memory, and validated before playback through `System.Media.SoundPlayer`. Playback stays in the same helper and is covered by its timeout and cancellation. File checks are not a sandbox against an attacker concurrently changing filesystem paths.
 - Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
 - It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
 - Decisions, finished questions, new runs, reloads, session changes, and shutdown cancel the relevant old work. A toast already shown can't be taken back, and cancellation can race with submission to Windows.
@@ -216,7 +244,7 @@ npm run verify
 npm pack --dry-run
 ```
 
-Tests use a fake clock, event bus, and launcher. On Windows, they also check PowerShell syntax and invalid input handling. Normal `npm test` runs don't show toasts or play sounds. See the [verification notes (繁體中文)](docs/verification.md) for the test scope and remaining checks.
+Tests use a fake clock, event bus, and launcher. On Windows, they also check PowerShell syntax, invalid input handling, PCM WAV validation, bounded file reads, and junction rejection. Normal `npm test` runs don't show toasts or play sounds. See the [verification notes (繁體中文)](docs/verification.md) for the test scope and remaining checks.
 
 ## License
 

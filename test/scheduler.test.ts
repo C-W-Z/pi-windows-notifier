@@ -106,13 +106,14 @@ test("獨立通道、兩者關閉、排隊後重新讀取設定與 payload 快�
   config.events.question.sound.enabled = true;
   const soundOnly = scheduler.submit(job("sound"));
   config.events.question.toast.title = "自訂";
-  config.events.question.sound.source.name = "Hand";
+  config.events.question.sound.source = { type: "system", name: "Hand" };
   clock.advance(0);
   assert.equal(calls[0].payload.toast.enabled, false);
   assert.equal(calls[0].payload.toast.title, "自訂");
-  assert.equal(calls[0].payload.sound.source.name, "Hand");
+  assert.deepEqual(calls[0].payload.sound.source, { type: "system", name: "Hand" });
+  assert.ok(config.events.question.sound.source.type === "system");
   config.events.question.sound.source.name = "Beep";
-  assert.equal(calls[0].payload.sound.source.name, "Hand");
+  assert.deepEqual(calls[0].payload.sound.source, { type: "system", name: "Hand" });
   calls[0].resolve({ code: "OK", toast: false, sound: "played" });
   assert.equal((await soundOnly).status, "submitted");
   await flush();

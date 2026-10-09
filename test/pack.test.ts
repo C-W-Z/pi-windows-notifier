@@ -13,5 +13,5 @@ test("npm 發布 dry-run 僅包含核准的 runtime、文件與授權", { skip: 
   const files = pack.files.map((file: { path: string }) => file.path).sort();
   assert.deepEqual(files, ["LICENSE", "README.md", "README.zh-TW.md", "THIRD_PARTY_NOTICES.md", "docs/verification.md",
     "package.json", "src/config.ts", "src/index.ts", "src/launcher.ts", "src/runtime.ts",
-    "src/scheduler.ts", "src/state.ts", "src/types.ts", "src/windows-notify.ps1"].sort());
+    "src/scheduler.ts", "src/state.ts", "src/types.ts", "src/windows-notify.ps1", "src/windows-sound.ps1"].sort());
 });

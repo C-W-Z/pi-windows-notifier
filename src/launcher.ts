@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { statSync } from "node:fs";
-import { dirname, win32 } from "node:path";
+import { dirname, join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord, validPayload, type NotificationPayload } from "./types.ts";
 
@@ -79,7 +79,7 @@ export function createWindowsBackend(options: BackendOptions = {}): Backend {
   const script = options.scriptPath ?? SCRIPT;
   const isFile = options.isFile ?? (path => { try { return statSync(path).isFile(); } catch { return false; } });
   const available = platform === "win32" && ["x64", "arm64"].includes(arch) &&
-    !!paths && isFile(paths.executable) && isFile(script);
+    !!paths && isFile(paths.executable) && isFile(script) && isFile(join(dirname(script), "windows-sound.ps1"));
   const spawnProcess = options.spawnProcess ?? spawn;
   const code = available ? "OK" : "BACKEND_UNAVAILABLE";
   return {

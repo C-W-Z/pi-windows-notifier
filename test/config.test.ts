@@ -4,6 +4,8 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "no
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaults, parseConfig, loadConfig, configPath, CONFIG_LIMIT } from "../src/config.ts";
+import { validSoundPath } from "../src/types.ts";
+import { validPaths, invalidPaths } from "./sound-fixtures.ts";
 
 test("預設與部分設定合併，不共用可變物件", () => {
   const result = parseConfig({ events: { question: { sound: false } } });
@@ -50,11 +52,42 @@ test("schema v2 內建預設、共用 defaults、事件覆寫依序合併", () =
   assert.equal(result.config.events.completed.toast.title, "共用標題");
   assert.equal(result.config.events.completed.toast.message, "完成了");
   assert.equal(result.config.events.completed.sound.enabled, false);
-  assert.equal(result.config.events.completed.sound.source.name, "Question");
+  assert.deepEqual(result.config.events.completed.sound.source, { type: "system", name: "Question" });
+  assert.ok(result.config.events.permission.sound.source.type === "system");
   result.config.events.permission.sound.source.name = "Hand";
-  assert.equal(result.config.events.question.sound.source.name, "Beep");
+  assert.deepEqual(result.config.events.question.sound.source, { type: "system", name: "Beep" });
   assert.equal(input.defaults.sound.source.name, "Beep");
-  assert.equal(defaults().events.completed.sound.source.name, "Asterisk");
+  assert.deepEqual(defaults().events.completed.sound.source, { type: "system", name: "Asterisk" });
+});
+test("本機 WAV 路徑驗證，未知或混合欄位即使停用音效也拒絕", () => {
+  for (const path of validPaths) {
+    assert.equal(validSoundPath(path), true);
+    assert.equal(parseConfig({ schemaVersion: 2, defaults: { sound: { source: { type: "file", path } } } }).ok, true);
+  }
+  for (const source of [
+    ...invalidPaths.map(path => ({ type: "file", path })),
+    { type: "file" }, { type: "file", path: validPaths[0], name: "Beep" },
+    { type: "file", path: validPaths[0], volume: 0.5 }, { type: "FILE", path: validPaths[0] },
+  ]) {
+    const result = parseConfig({ schemaVersion: 2, defaults: { sound: { enabled: false, source } } });
+    assert.equal(result.ok, false);
+    assert.equal(result.config.enabled, false);
+  }
+});
+test("檔案與系統來源整組覆寫、defaults 不共用來源，也不更動輸入", () => {
+  const source = { type: "file", path: validPaths[0] };
+  const input = { schemaVersion: 2, defaults: { sound: { source } }, events: {
+    completed: { sound: { source: { type: "system", name: "Beep" } } },
+    failed: { sound: { source: { type: "file", path: validPaths[1] } } },
+  } };
+  const result = parseConfig(input);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.config.events.completed.sound.source, { type: "system", name: "Beep" });
+  assert.deepEqual(result.config.events.failed.sound.source, { type: "file", path: validPaths[1] });
+  assert.ok(result.config.events.question.sound.source.type === "file");
+  result.config.events.question.sound.source.path = validPaths[2];
+  assert.deepEqual(result.config.events.permission.sound.source, source);
+  assert.equal(source.path, validPaths[0]);
 });
 test("舊格式只在記憶體轉換，不改變 event enabled 與 sound boolean 的原意", () => {
   const old = { enabled: false, events: { question: { enabled: false, sound: false }, completed: { sound: false } } };
@@ -68,7 +101,7 @@ test("舊格式只在記憶體轉換，不改變 event enabled 與 sound boolean
   assert.equal(result.config.events.question.sound.enabled, false);
   assert.equal(JSON.stringify(old), before);
 });
-test("v2 拒絕混合格式、未知版本／欄位、不完整來源與檔案音效", () => {
+test("v2 拒絕混合格式、未知版本／欄位與不完整來源", () => {
   for (const value of [
     { schemaVersion: 1 }, { schemaVersion: "2" }, { defaults: {} },
     { schemaVersion: 2, defaults: { enabled: true } },
@@ -96,11 +129,14 @@ test("文字長度與 XML 字元驗證；引號、指令樣式文字與 emoji �
     assert.equal(parseConfig({ schemaVersion: 2, defaults: { toast } }).ok, false);
   }
 });
-test("雙語 README 的完整設定涵蓋所有欄位與五種事件，且等同內建行為", () => {
+test("雙語 README 的系統範例等同內建行為，檔案音效範例可解析", () => {
   for (const name of ["README.md", "README.zh-TW.md"]) {
     const document = readFileSync(new URL("../" + name, import.meta.url), "utf8");
     const examples = [...document.matchAll(/```json\n([\s\S]*?)\n```/gu)];
-    assert.equal(examples.length, 1);
+    assert.equal(examples.length, 2);
+    const fileExample = parseConfig(JSON.parse(examples[1][1]));
+    assert.equal(fileExample.ok, true);
+    assert.deepEqual(fileExample.config.events.completed.sound.source, { type: "file", path: "C:/Users/you/Sounds/done.wav" });
     const input = JSON.parse(examples[0][1]);
     assert.equal(input.schemaVersion, 2);
     assert.equal(input.enabled, true);

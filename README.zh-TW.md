@@ -2,7 +2,7 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-不用一直盯著 Pi。需要你確認權限、回答問題，或模型回應結束時，這個 extension 會跳出 Windows 通知並播放提示音。就算你正在看別的視窗，也會提醒。
+不用一直盯著 Pi。需要你確認權限、回答問題，或模型回應結束時，這個 extension 會跳出 Windows 通知，並播放系統提示音或你自訂的 WAV 音效。就算你正在看別的視窗，也會提醒。
 
 通知不會從 session 帶出問題、命令、檔案路徑或模型回答，但你可以設定自己的固定提醒文字。它也不會替你批准權限或回答問題，所有提醒都在本機處理。
 
@@ -67,7 +67,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 ### 完整設定範例
 
-下面列出所有支援的欄位和五種事件，可以直接複製作為起點。不過，**實際只要保留想修改的欄位，加上 `schemaVersion: 2` 就好**。每個事件都覆寫了共用訊息，因此這份範例的效果等同內建預設。
+下面列出系統音效的欄位和五種事件，可以直接複製作為起點；檔案音效範例另列於下方。不過，**實際只要保留想修改的欄位，加上 `schemaVersion: 2` 就好**。每個事件都覆寫了共用訊息，因此這份範例的效果等同內建預設。
 
 ```json
 {
@@ -132,10 +132,11 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 | `toast.title` | 固定的通知標題 |
 | `toast.message` | 固定的通知訊息 |
 | `sound.enabled` | 音效開關 |
-| `sound.source.type` | 目前只支援 `"system"` |
-| `sound.source.name` | `Asterisk`、`Beep`、`Exclamation`、`Hand`、`Question`，大小寫要一致 |
+| `sound.source.type` | `"system"` 使用 Windows 系統音效，`"file"` 使用本機 WAV |
+| `sound.source.name` | `"system"` 必填：`Asterisk`、`Beep`、`Exclamation`、`Hand`、`Question`，大小寫要一致 |
+| `sound.source.path` | `"file"` 必填：本機 WAV 的絕對路徑，最多 1024 個 UTF-16 code units |
 
-`toast` 和 `sound` 欄位都能放在 `defaults` 或個別事件底下。**完整範例已寫出每個事件的所有欄位，只改 `defaults` 不會改到已被事件覆寫的值。** 想讓事件沿用共用設定，請刪除該事件底下對應的欄位。設定 `sound.source` 時必須一起提供 `type` 和 `name`，它會整組取代原本的來源。
+`toast` 和 `sound` 欄位都能放在 `defaults` 或個別事件底下。**完整範例已寫出每個事件的所有欄位，只改 `defaults` 不會改到已被事件覆寫的值。** 想讓事件沿用共用設定，請刪除該事件底下對應的欄位。設定 `sound.source` 時必須提供 `type`，以及系統音效的 `name` 或檔案音效的 `path`，不能同時提供兩者；它會整組取代原本的來源。
 
 - **只要彈窗**：將 `sound.enabled` 設為 `false`、`toast.enabled` 設為 `true`。
 - **只要音效**：將 `toast.enabled` 設為 `false`、`sound.enabled` 設為 `true`。
@@ -147,7 +148,33 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 文字會照你寫的內容顯示，不會從 session 帶入變數，也沒有模板替換。標題最多 128 個 UTF-16 code units，訊息最多 512 個；emoji 可能算兩個。兩者都必須是非空白的單行字串，不能包含控制字元或不合法的 XML 字元。自訂文字會出現在 Windows 通知裡，請不要放敏感資訊；它不會顯示在 `status` 或錯誤提示中。
 
-音效名稱選的是 **Windows 系統音效事件**，不是套件內附的不同音效檔。實際聲音取決於 Windows 音效配置；不同事件可能共用同一個聲音，也可能沒有對應音效。你可以在 Windows「音效」設定中查看或修改對應，但修改也會影響使用相同事件的其他程式。目前不支援自訂音效檔。
+音效名稱選的是 **Windows 系統音效事件**，不是套件內附的不同音效檔。實際聲音取決於 Windows 音效配置；不同事件可能共用同一個聲音，也可能沒有對應音效。你可以在 Windows「音效」設定中查看或修改對應，但修改也會影響使用相同事件的其他程式。改用檔案來源只影響這個 extension，不會修改 Windows 音效配置。
+
+### 自訂 WAV 音效
+
+例如，讓回應完成時播放你自己的音效：
+
+```json
+{
+  "schemaVersion": 2,
+  "events": {
+    "completed": {
+      "sound": {
+        "source": { "type": "file", "path": "C:/Users/you/Sounds/done.wav" }
+      }
+    }
+  }
+}
+```
+
+同樣的 `sound.source` 也可以放在 `defaults`，讓多個事件共用檔案，或為每個事件選擇不同音效。想沿用 `defaults` 時，請移除原本事件底下的來源覆寫。
+
+- 使用本機**固定磁碟**上的絕對路徑，例如 `C:/Sounds/done.wav`。正斜線可以直接使用，避免 JSON 跳脫；使用反斜線時，`C:\Sounds\done.wav` 在 JSON 要寫成 `"C:\\Sounds\\done.wav"`。
+- 不支援相對路徑、`~`、環境變數展開、URL、UNC 路徑、網路磁碟、裝置路徑、alternate data streams 或 reparse points（包含上層目錄的 junction／symlink）。
+- 檔案必須是 RIFF PCM WAV：mono 或 stereo、8 或 16 bit、8–48 kHz，最多 **5 秒**、**5 MiB**。不支援 MP3、壓縮 WAV 或 WAV extensible；把 MP3 改名成 `.wav` 也不能播放。
+- 不提供個別音量、循環播放、外部播放器或內附音效。請使用可信任且有權使用的音訊。
+- reload 時驗證路徑；只有啟用的音效實際提交時，才讀取並檢查檔案。檔案不存在、無法讀取、格式不支援或超過限制時回報 `SOUND_FAILED`，彈窗仍會嘗試送出，不會改播系統音效。
+- 檔案路徑透過 stdin 送入固定 helper，不放在命令參數，也不顯示在 `status` 或錯誤提示中。
 
 ### 套用修改與舊格式相容
 
@@ -166,7 +193,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 /windows-notifier test permission
 ```
 
-- `status`：查看通道開關、音效選擇、backend 狀態、佇列計數和診斷碼，不會顯示自訂文字或 session 內容。
+- `status`：查看通道開關、音效選擇、backend 狀態、佇列計數和診斷碼，不會顯示自訂文字、檔案路徑或 session 內容。
 - `reload`：重新讀取設定，取消舊的通知工作。
 - `test`：預設測試完成通知，也能指定 `permission`、`question`、`completed`、`aborted` 或 `failed`。
 
@@ -198,11 +225,12 @@ Windows 仍然有最終決定權。勿擾模式、通知設定、系統音效方
 
 ## 隱私與程序安全
 
-套件透過固定的 PowerShell 腳本呼叫 Windows 內建通知和音效 API，不用另外裝通知服務或播放器。沒有網路通知、遙測或自訂音效檔。
+套件透過固定的 PowerShell 腳本呼叫 Windows 內建通知和音效 API，不用另外裝通知服務或播放器。沒有網路通知、遙測、下載或內附音效檔。
 
 - PowerShell 使用啟動環境的 `SystemRoot`／`windir` 下的絕對路徑，不從專案目錄或 `PATH` 搜尋。
-- helper 不透過 shell 執行，只從 stdin 接收事件類型、已驗證的通道設定與固定設定文字。文字用 DOM text node 加進通知，不拼進 PowerShell 命令或 XML，也不傳入 session 內容。
+- helper 不透過 shell 執行，只從 stdin 接收事件類型、已驗證的通道設定（含自訂音效的本機 WAV 路徑）與固定設定文字。文字用 DOM text node 加進通知，不拼進 PowerShell 命令或 XML，也不傳入 session 內容。
 - 子程序只拿到必要的 Windows 環境變數，不繼承 Pi 的完整環境或 API tokens。`-ExecutionPolicy Bypass` 只作用於該子程序，不會取得管理員權限或改動永久設定，也不把 Execution Policy 當成安全邊界。
+- WAV 播放前會檢查本機磁碟路徑與 reparse points，讀入有大小限制的記憶體並驗證格式，再交給 `System.Media.SoundPlayer`。播放留在同一個 helper，沿用逾時與取消機制；檔案檢查不是防止攻擊者同時修改路徑的 sandbox。
 - 同時最多一個 helper，佇列最多 16 筆，啟動至少間隔一秒。工作等待超過 30 秒會過期，helper 的 timeout 是 10 秒，stdout 和 stderr 各限制 8 KiB。權限和提問比回應結束通知優先。
 - 只嘗試終止自己建立的子程序，不會按名稱關閉其他程序。如果 Windows 不允許終止，就等它結束，不會繼續堆出新的 helper。
 - 權限決策、問題結束、新回應、reload、session 切換和 shutdown 都會取消相關舊工作。已經顯示的 Toast 無法收回，取消和提交給 Windows 之間仍可能發生競態。
@@ -217,7 +245,7 @@ npm run verify
 npm pack --dry-run
 ```
 
-測試使用假時鐘、event bus 和 launcher。Windows 上也會檢查 PowerShell 語法與無效輸入。一般 `npm test` 不會跳彈窗或播放音效；測試範圍與仍需確認的項目見[驗證紀錄](docs/verification.md)。
+測試使用假時鐘、event bus 和 launcher。Windows 上也會檢查 PowerShell 語法、無效輸入、PCM WAV 驗證、有界檔案讀取與 junction 拒絕。一般 `npm test` 不會跳彈窗或播放音效；測試範圍與仍需確認的項目見[驗證紀錄](docs/verification.md)。
 
 ## 授權
 

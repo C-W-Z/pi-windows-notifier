@@ -147,11 +147,12 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
           backend: target?.backendCode ?? "NOT_STARTED",
           enabled: target?.result.config.enabled ?? false,
           schemaVersion: target?.result.config.schemaVersion,
-          // 自訂文字只送入 helper；status 不展示可能含敏感資訊的設定文字。
+          // 自訂文字與檔案路徑只送入 helper；status 不展示可能含敏感資訊的設定。
           events: target ? Object.fromEntries(KINDS.map(kind => {
             const event = target.result.config.events[kind];
             return [kind, { enabled: event.enabled, toast: { enabled: event.toast.enabled },
-              sound: { enabled: event.sound.enabled, source: { ...event.sound.source } } }];
+              sound: { enabled: event.sound.enabled, source: event.sound.source.type === "system"
+                ? { ...event.sound.source } : { type: "file" } } }];
           })) : undefined,
           ...target?.scheduler?.status(),
           diagnostics: [...(target?.diagnostics ?? [])],

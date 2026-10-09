@@ -104,7 +104,7 @@ test("文字經 stdin 傳遞，不出現在 args；payload 與結果判斷不受
   const request = payload("completed", false);
   request.toast.title = 'Pi <tag> & "引號" 😀';
   request.toast.message = "$(Get-Process) 只是文字";
-  request.sound.source.name = "Hand";
+  request.sound.source = { type: "system", name: "Hand" };
   const promise = backend.launch(request, new AbortController().signal);
   const sent = JSON.parse(calls[0].input);
   assert.deepEqual(sent, request);
@@ -113,6 +113,18 @@ test("文字經 stdin 傳遞，不出現在 args；payload 與結果判斷不受
   request.sound.enabled = true;
   close({ code: "OK", toast: true, sound: "disabled" });
   assert.equal((await promise).code, "OK");
+});
+test("檔案路徑僅經 stdin 傳遞，音效失敗保留 Toast 部分成功", async () => {
+  const { backend, calls, close } = fixture();
+  const request = payload();
+  request.sound.source = { type: "file", path: String.raw`C:\Sounds\it's $(PRIVATE); done.wav` };
+  const promise = backend.launch(request, new AbortController().signal);
+  assert.deepEqual(JSON.parse(calls[0].input), request);
+  assert.equal(calls[0].args.join().includes("PRIVATE"), false);
+  request.sound.source.path = "C:/changed.wav";
+  assert.equal(JSON.parse(calls[0].input).sound.source.path.includes("PRIVATE"), true);
+  close({ code: "SOUND_FAILED", toast: true, sound: "failed" }, 1);
+  assert.deepEqual(await promise, { code: "SOUND_FAILED", toast: true, sound: "failed" });
 });
 test("無效 payload 不建立 helper", async () => {
   const { backend, calls } = fixture();
@@ -156,7 +168,8 @@ test("pipe 錯誤只結束自有 helper，不把原始錯誤拋到宿主", async
 });
 test("非 Windows、32 位元及遺失檔案不啟動程序", async () => {
   for (const options of [{ platform: "linux" as const }, { platform: "win32" as const, arch: "ia32" },
-    { platform: "win32" as const, isFile: () => false }]) {
+    { platform: "win32" as const, isFile: () => false },
+    { platform: "win32" as const, isFile: (path: string) => !path.endsWith("windows-sound.ps1") }]) {
     const backend = createWindowsBackend({ env: { SystemRoot: "C:\\Windows" }, ...options });
     assert.equal(backend.available, false);
     assert.equal((await backend.launch(payload("completed", true), new AbortController().signal)).code, "BACKEND_UNAVAILABLE");

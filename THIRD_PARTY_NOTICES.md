@@ -35,5 +35,5 @@ SOFTWARE.
 ## Other references
 
 - [UniPi notify](https://github.com/Neuron-Mr-White/UniPi/tree/main/packages/notify), reference commit `6ac5da3`: consulted for event/backend separation. No code was copied, and neither UniPi core nor node-notifier is included.
-- [pi-jingle](https://github.com/Git-Monke/pi-jingle), reference commit `7e265ce`: consulted for the idea of event-specific sounds. Its license was not confirmed during development, so no code or audio assets were copied.
+- [pi-jingle](https://github.com/Git-Monke/pi-jingle), reference commit `7e265ce`: consulted for the idea of event-specific sounds. Its license was not confirmed during development, so no code or audio assets were copied. Custom WAV support, path validation, bounded PCM parsing, and tests were implemented independently using Windows/.NET APIs.
 - Pi, pi-permission-system, RPIV/Lean, and Plan mode APIs and source were consulted to verify integration contracts. Their source code is not bundled in this package.

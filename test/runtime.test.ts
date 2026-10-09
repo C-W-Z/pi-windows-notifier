@@ -190,7 +190,7 @@ test("自訂文字可送達 backend，但 status、警告及 test 結果不展�
   await pending;
   assert.equal(h.calls[0].payload.toast.title, "PRIVATE_TITLE");
   assert.equal(h.calls[0].payload.toast.message, "PRIVATE_MESSAGE");
-  assert.equal(h.calls[0].payload.sound.source.name, "Question");
+  assert.deepEqual(h.calls[0].payload.sound.source, { type: "system", name: "Question" });
   await h.command("status");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
   const status = JSON.parse(h.messages.at(-1)!);
@@ -200,6 +200,26 @@ test("自訂文字可送達 backend，但 status、警告及 test 結果不展�
   await h.command("reload");
   await h.command("status");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
+  await h.hook("session_shutdown");
+});
+test("檔案音效可以測試與 reload，但 status 不洩漏私人路徑", async () => {
+  const makeConfig = (path: string) => parseConfig({ schemaVersion: 2,
+    defaults: { sound: { source: { type: "file", path } } } });
+  const h = harness({ result: makeConfig("C:/PRIVATE_USER/done.wav") });
+  await h.hook("session_start");
+  const pending = h.command("test");
+  await h.tick();
+  await pending;
+  assert.deepEqual(h.calls[0].payload.sound.source, { type: "file", path: "C:/PRIVATE_USER/done.wav" });
+  await h.command("status");
+  assert.deepEqual(JSON.parse(h.messages.at(-1)!).events.completed.sound.source, { type: "file" });
+  assert.equal(h.messages.join().includes("PRIVATE_USER"), false);
+  h.setResult(makeConfig("D:/PRIVATE_USER/new.wav"));
+  await h.command("reload");
+  const next = h.command("test question");
+  await h.tick();
+  await next;
+  assert.deepEqual(h.calls[1].payload.sound.source, { type: "file", path: "D:/PRIVATE_USER/new.wav" });
   await h.hook("session_shutdown");
 });
 test("同時 reload 會等待舊 helper close，不能提前建立第二個 backend", async () => {

@@ -1,8 +1,9 @@
-﻿# 固定 helper：只接受已驗證的通道設定與靜態文字，不接受任意命令或音效路徑。
+﻿# 固定 helper：只接受已驗證的通道設定、靜態文字與本機 WAV 路徑，不接受任意命令。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false, $true)
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+. (Join-Path $PSScriptRoot "windows-sound.ps1")
 
 function Write-Result {
   param([string]$Code, [bool]$Toast, [string]$Sound)
@@ -67,10 +68,15 @@ try {
   Assert-Text $inputData.toast.message 512
   Assert-Keys $inputData.sound @("enabled", "source")
   if ($inputData.sound.enabled -isnot [bool]) { throw "INPUT_INVALID" }
-  Assert-Keys $inputData.sound.source @("type", "name")
-  if ($inputData.sound.source.type -cne "system" -or $inputData.sound.source.type -isnot [string] -or
-      $inputData.sound.source.name -isnot [string] -or
-      @("Asterisk", "Beep", "Exclamation", "Hand", "Question") -cnotcontains $inputData.sound.source.name) { throw "INPUT_INVALID" }
+  if ($inputData.sound.source.type -ceq "system") {
+    Assert-Keys $inputData.sound.source @("type", "name")
+    if ($inputData.sound.source.type -isnot [string] -or $inputData.sound.source.name -isnot [string] -or
+        @("Asterisk", "Beep", "Exclamation", "Hand", "Question") -cnotcontains $inputData.sound.source.name) { throw "INPUT_INVALID" }
+  } elseif ($inputData.sound.source.type -ceq "file") {
+    Assert-Keys $inputData.sound.source @("type", "path")
+    if ($inputData.sound.source.type -isnot [string]) { throw "INPUT_INVALID" }
+    Assert-SoundPath $inputData.sound.source.path
+  } else { throw "INPUT_INVALID" }
 }
 catch {
   Write-Result "INPUT_INVALID" $false "failed"
@@ -101,17 +107,21 @@ if ($inputData.toast.enabled) {
 
 if ($inputData.sound.enabled) {
   try {
-    # 固定 switch 不使用反射、動態 member access 或外部播放器。
-    switch -CaseSensitive ($inputData.sound.source.name) {
-      "Asterisk" { [System.Media.SystemSounds]::Asterisk.Play() }
-      "Beep" { [System.Media.SystemSounds]::Beep.Play() }
-      "Exclamation" { [System.Media.SystemSounds]::Exclamation.Play() }
-      "Hand" { [System.Media.SystemSounds]::Hand.Play() }
-      "Question" { [System.Media.SystemSounds]::Question.Play() }
+    if ($inputData.sound.source.type -ceq "file") {
+      Play-LocalWave $inputData.sound.source.path
+    } else {
+      # 固定 switch 不使用反射、動態 member access 或外部播放器。
+      switch -CaseSensitive ($inputData.sound.source.name) {
+        "Asterisk" { [System.Media.SystemSounds]::Asterisk.Play() }
+        "Beep" { [System.Media.SystemSounds]::Beep.Play() }
+        "Exclamation" { [System.Media.SystemSounds]::Exclamation.Play() }
+        "Hand" { [System.Media.SystemSounds]::Hand.Play() }
+        "Question" { [System.Media.SystemSounds]::Question.Play() }
+      }
+      # Play 非同步；有界等待不保證聲音實際送達，也不建立其他播放器。
+      Start-Sleep -Milliseconds 750
     }
     $soundStatus = "played"
-    # Play 非同步；有界等待不保證聲音實際送達，也不建立其他播放器。
-    Start-Sleep -Milliseconds 750
   }
   catch { $soundStatus = "failed" }
 }

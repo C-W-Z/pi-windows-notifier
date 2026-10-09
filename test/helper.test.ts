@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaults } from "../src/config.ts";
 import { SYSTEM_SOUNDS } from "../src/types.ts";
 import { windowsPaths } from "../src/launcher.ts";
+import { validPaths, invalidPaths } from "./sound-fixtures.ts";
 
 const script = fileURLToPath(new URL("../src/windows-notify.ps1", import.meta.url));
 const paths = process.platform === "win32" && ["x64", "arm64"].includes(process.arch) ? windowsPaths(process.env) : undefined;
@@ -19,10 +23,12 @@ function disabledPayload() {
 }
 test("Windows PowerShell 可以解析固定 helper（不執行 helper）", { skip: !paths }, () => {
   const command = '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile([Console]::In.ReadToEnd(), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { exit 1 }; Write-Output "OK"';
-  const result = spawnSync(paths!.executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
-    { input: script, encoding: "utf8", env: paths!.env, shell: false, windowsHide: true, timeout: 10_000, maxBuffer: 8192 });
-  assert.equal(result.status, 0);
-  assert.equal(result.stdout.trim(), "OK");
+  for (const file of [script, fileURLToPath(new URL("../src/windows-sound.ps1", import.meta.url))]) {
+    const result = spawnSync(paths!.executable, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+      { input: file, encoding: "utf8", env: paths!.env, shell: false, windowsHide: true, timeout: 10_000, maxBuffer: 8192 });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout.trim(), "OK");
+  }
 });
 test("helper 拒絕無效輸入，完整驗證後才允許任何 Toast 或音效", { skip: !paths }, () => {
   const base = disabledPayload();
@@ -39,7 +45,9 @@ test("helper 拒絕無效輸入，完整驗證後才允許任何 Toast 或音效
       { ...base, toast: { ...base.toast, message: "\uffff" } },
       { ...base, toast: { ...base.toast, path: "SECRET" } },
       { ...base, sound: { ...base.sound, source: { type: "system", name: "beep" } } },
-      { ...base, sound: { ...base.sound, source: { type: "file", path: "SECRET.wav" } } },
+      ...invalidPaths.map(path => ({ ...base, sound: { ...base.sound, source: { type: "file", path } } })),
+      { ...base, sound: { ...base.sound, source: { type: "file", path: validPaths[0], name: "Beep" } } },
+      { ...base, sound: { ...base.sound, source: { type: "FILE", path: validPaths[0] } } },
       { ...base, sound: { ...base.sound, source: { type: "system" } } },
       { ...base, sound: { ...base.sound, source: { type: "system", name: "Beep", extra: "SECRET" } } },
     ].map(value => JSON.stringify(value))];
@@ -52,12 +60,34 @@ test("helper 拒絕無效輸入，完整驗證後才允許任何 Toast 或音效
     assert.equal(result.stderr, "");
   }
 });
+test("helper 接受合法檔案來源；關閉音效時不讀取不存在的 WAV", { skip: !paths }, () => {
+  for (const path of validPaths) {
+    const request = disabledPayload();
+    request.sound.source = { type: "file", path };
+    const result = run(JSON.stringify(request));
+    assert.equal(result.status, 0);
+    assert.deepEqual(JSON.parse(result.stdout.trim()), { code: "OK", toast: false, sound: "disabled" });
+    assert.equal(result.stderr, "");
+  }
+});
+test("helper 對缺失 WAV 回傳 SOUND_FAILED，不洩漏路徑或改播提示音", { skip: !paths }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-notifier-PRIVATE-"));
+  try {
+    const request = disabledPayload();
+    request.sound = { enabled: true, source: { type: "file", path: join(dir, "missing.wav") } };
+    const result = run(JSON.stringify(request));
+    assert.equal(result.status, 1);
+    assert.deepEqual(JSON.parse(result.stdout.trim()), { code: "SOUND_FAILED", toast: false, sound: "failed" });
+    assert.equal(result.stdout.includes("PRIVATE"), false);
+    assert.equal(result.stderr, "");
+  } finally { rmSync(dir, { recursive: true }); }
+});
 test("helper 接受 Unicode／XML 文字及所有系統音效名稱；關閉通道不執行 API", { skip: !paths }, () => {
   for (const name of SYSTEM_SOUNDS) {
     const request = disabledPayload();
     request.toast.title = 'Pi <tag> & "引號" 😀';
     request.toast.message = "$(Write-Output SECRET) 只是文字";
-    request.sound.source.name = name;
+    request.sound.source = { type: "system", name };
     const result = run(JSON.stringify(request));
     assert.equal(result.status, 0);
     assert.deepEqual(JSON.parse(result.stdout.trim()), { code: "OK", toast: false, sound: "disabled" });
