@@ -228,8 +228,7 @@ Details: /windows-notifier status all
 `status all` also adds rows for each event, for example:
 
 ```text
-  completed   Event: On  Toast: On
-              Sound: On (Hand)
+  completed   Event: On  Toast: On  Sound: On (Hand)
 ```
 
 **Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.

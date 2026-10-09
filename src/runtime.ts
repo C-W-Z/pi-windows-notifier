@@ -57,8 +57,7 @@ function formatStatus(target: Session | undefined, detail: boolean): string {
       for (const kind of KINDS) {
         const event = config.events[kind];
         const source = event.sound.source.type === "system" ? event.sound.source.name : "WAV file";
-        lines.push(`  ${kind.padEnd(10)}  Event: ${onOff(event.enabled)}  Toast: ${onOff(event.toast.enabled)}`,
-          `              Sound: ${onOff(event.sound.enabled)} (${source})`);
+        lines.push(`  ${kind.padEnd(10)}  Event: ${onOff(event.enabled)}  Toast: ${onOff(event.toast.enabled)}  Sound: ${onOff(event.sound.enabled)} (${source})`);
       }
     } else lines.push("  Not loaded");
   } else lines.push("", "Details: /windows-notifier status all");

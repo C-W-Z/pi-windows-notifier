@@ -228,8 +228,7 @@ Details: /windows-notifier status all
 `status all` 會再加上每個事件的明細，例如：
 
 ```text
-  completed   Event: On  Toast: On
-              Sound: On (Hand)
+  completed   Event: On  Toast: On  Sound: On (Hand)
 ```
 
 **測試會真的跳通知、播放音效。** 和自動通知一樣，它會遵守開關、佇列與限流，不會強行送出已停用的事件。

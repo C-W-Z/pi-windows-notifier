@@ -125,7 +125,7 @@ test("status 與空參數顯示簡潔摘要；all 顯示安全明細", async () 
   assert.equal(/[\u3400-\u9fff]/u.test(summary + detail), false);
   assert.match(detail, /Schema version: 2/u);
   for (const kind of ["permission", "question", "completed", "aborted", "failed"])
-    assert.match(detail, new RegExp(`${kind}\\s+Event: On  Toast: On`, "u"));
+    assert.match(detail, new RegExp(`^  ${kind} +Event: On  Toast: On  Sound: On \\(\\w+\\)$`, "mu"));
   assert.match(detail, /Sound: On \(Hand\)/u);
   assert.match(detail, /Sound: On \(Exclamation\)/u);
   assert.equal(detail.includes("Details"), false);
@@ -143,8 +143,8 @@ test("status 明細區分總開關、事件與通道設定，不暗示停用事�
   assert.match(detail, /Global: Off/u);
   assert.match(detail, /Configured events: 4 \/ 5 enabled/u);
   assert.match(detail, /configured values; global switch and backend still apply/u);
-  assert.match(detail, /permission\s+Event: Off  Toast: Off\n\s+Sound: Off \(Exclamation\)/u);
-  assert.match(detail, /question\s+Event: On  Toast: On\n\s+Sound: Off \(Exclamation\)/u);
+  assert.match(detail, /^  permission +Event: Off  Toast: Off  Sound: Off \(Exclamation\)$/mu);
+  assert.match(detail, /^  question +Event: On  Toast: On  Sound: Off \(Exclamation\)$/mu);
   await h.hook("session_shutdown");
 });
 test("未啟動、不支援環境與無效設定的 status 仍可讀且保留診斷碼", async () => {
@@ -322,7 +322,7 @@ test("檔案音效可以測試與 reload，但 status 不洩漏私人路徑", as
   assert.deepEqual(h.calls[0].payload.sound.source, { type: "file", path: "C:/PRIVATE_USER/done.wav" });
   await h.command("status");
   await h.command("status all");
-  assert.match(h.messages.at(-1)!, /Sound: On \(WAV file\)/u);
+  assert.match(h.messages.at(-1)!, /^  completed +Event: On  Toast: On  Sound: On \(WAV file\)$/mu);
   assert.equal(h.messages.join().includes("PRIVATE_USER"), false);
   h.setResult(makeConfig("D:/PRIVATE_USER/new.wav"));
   await h.command("reload");
