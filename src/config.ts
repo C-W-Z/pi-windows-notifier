@@ -16,8 +16,8 @@ export type ConfigResult =
   | { ok: false; code: "CONFIG_INVALID" | "CONFIG_TOO_LARGE" | "CONFIG_READ_FAILED"; config: Config };
 
 const MESSAGES: Record<NotificationKind, string> = {
-  permission: "需要權限確認", question: "有問題等待回答", completed: "回應已完成",
-  aborted: "回應已中止", failed: "回應失敗",
+  permission: "Permission approval needed", question: "Waiting for your answer", completed: "Response complete",
+  aborted: "Response interrupted", failed: "Response failed",
 };
 export function defaults(): Config {
   return { schemaVersion: 2, enabled: true, events: Object.fromEntries(KINDS.map(kind =>

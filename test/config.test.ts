@@ -12,6 +12,21 @@ test("預設與部分設定合併，不共用可變物件", () => {
   assert.equal(result.config.events.permission.enabled, true);
   assert.equal(defaults().events.question.sound.enabled, true);
 });
+test("內建、空設定與舊設定的未覆寫訊息均為英文，自訂文字保持不變", () => {
+  const expected = {
+    permission: "Permission approval needed", question: "Waiting for your answer", completed: "Response complete",
+    aborted: "Response interrupted", failed: "Response failed",
+  };
+  for (const config of [defaults(), parseConfig({}).config, parseConfig({ events: { completed: { sound: false } } }).config,
+    parseConfig({ schemaVersion: 2 }).config]) {
+    for (const kind of Object.keys(expected) as Array<keyof typeof expected>) {
+      assert.equal(config.events[kind].toast.title, "Pi");
+      assert.equal(config.events[kind].toast.message, expected[kind]);
+    }
+  }
+  const custom = parseConfig({ schemaVersion: 2, events: { question: { toast: { message: "請回答問題" } } } });
+  assert.equal(custom.config.events.question.toast.message, "請回答問題");
+});
 test("未知欄位與錯型設定 fail closed", () => {
   for (const value of [null, [], true, { enabled: "true" }, { server: "https://example.test" },
     { events: { other: {} } }, { events: { question: null } }, { events: { question: { sound: 1 } } },
@@ -30,7 +45,7 @@ test("schema v2 內建預設、共用 defaults、事件覆寫依序合併", () =
   assert.equal(result.ok, true);
   assert.equal(result.config.events.permission.toast.enabled, false);
   assert.equal(result.config.events.permission.toast.title, "共用標題");
-  assert.equal(result.config.events.permission.toast.message, "需要權限確認");
+  assert.equal(result.config.events.permission.toast.message, "Permission approval needed");
   assert.equal(result.config.events.completed.toast.enabled, true);
   assert.equal(result.config.events.completed.toast.title, "共用標題");
   assert.equal(result.config.events.completed.toast.message, "完成了");
@@ -95,6 +110,7 @@ test("讀取有界檔案，不存在使用預設，錯誤停用", () => {
   const path = join(dir, "config.json");
   try {
     assert.equal(loadConfig(path).config.enabled, true);
+    assert.equal(loadConfig(path).config.events.completed.toast.message, "Response complete");
     writeFileSync(path, "{");
     assert.equal(loadConfig(path).ok, false);
     writeFileSync(path, " ".repeat(CONFIG_LIMIT + 1));

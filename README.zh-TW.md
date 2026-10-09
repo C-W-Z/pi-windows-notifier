@@ -35,13 +35,13 @@ pi remove npm:pi-windows-notifier
 
 | 事件 | 通知內容 | Windows 提示音 |
 |---|---|---|
-| `permission` | 需要權限確認 | Exclamation |
-| `question` | 有問題等待回答 | Exclamation |
-| `completed` | 回應已完成 | Asterisk |
-| `aborted` | 回應已中止 | Exclamation |
-| `failed` | 回應失敗 | Exclamation |
+| `permission` | Permission approval needed | Exclamation |
+| `question` | Waiting for your answer | Exclamation |
+| `completed` | Response complete | Asterisk |
+| `aborted` | Response interrupted | Exclamation |
+| `failed` | Response failed | Exclamation |
 
-彈窗標題預設是 **Pi**，預設訊息是繁體中文。每個事件都能設定自己的標題與訊息；指令提示仍是繁體中文，沒有整體語言切換設定。
+彈窗標題預設是 **Pi**，預設訊息是英文。每個事件都能設定自己的標題與訊息；指令提示仍是繁體中文，沒有整體語言切換設定。
 
 **權限提醒**搭配 `@gotgenes/pi-permission-system` 使用，也支援從 subagent 轉送到父 session 的權限請求。自動允許、自動拒絕，或已經有 session approval 的請求不會提醒。
 

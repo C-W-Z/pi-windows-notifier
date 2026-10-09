@@ -41,7 +41,7 @@ pi remove npm:pi-windows-notifier
 | `aborted` | The response was interrupted | Exclamation |
 | `failed` | The response ended in an error | Exclamation |
 
-The default toast title is **Pi**, and default messages are in Traditional Chinese. You can change the title and message for each event in your config. Command messages are still in Traditional Chinese; there isn't a language switch.
+The default toast title is **Pi**, and default messages are in English. You can change the title and message for each event in your config. Command messages are still in Traditional Chinese; there isn't a language switch.
 
 Permission notifications work with `@gotgenes/pi-permission-system`, including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
 
@@ -99,7 +99,7 @@ New settings use `schemaVersion: 2`. You only need to include the values you wan
 
 Settings are applied in this order: **built-in event defaults → your shared `defaults` → the event's settings**. For example, a title under `defaults.toast` applies to every event unless that event sets its own title.
 
-Without a config file, all channels are enabled, the title is Pi, messages describe the event in Traditional Chinese, and completion uses Asterisk while other events use Exclamation.
+Without a config file, all channels are enabled, the title is Pi, messages describe the event in English, and completion uses Asterisk while other events use Exclamation.
 
 - Set the top-level `enabled` to `false` to turn all notifications off.
 - Set `events.<event>.enabled` to `false` to turn that event off.
