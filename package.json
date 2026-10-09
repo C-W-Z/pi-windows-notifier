@@ -1,7 +1,7 @@
 {
   "name": "pi-windows-notifier",
   "version": "0.3.0",
-  "description": "Windows notifications and sounds for Pi permission requests, questions, and completed, interrupted, or failed responses.",
+  "description": "Built for Windows. Zero dependencies. Customizable, security-first notifications and alert sounds for Pi.",
   "type": "module",
   "license": "MIT",
   "repository": {

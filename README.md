@@ -4,7 +4,7 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
-**Built specifically for Windows. Zero dependencies. Security-first alert sound and notification plugin.**
+**Built for Windows. Zero dependencies. Customizable, security-first notifications and alert sounds for Pi.**
 
 Get a Windows notification when Pi needs your attention—or when it's finished responding. Shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed responses, even while you're looking at another window.
 
