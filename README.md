@@ -1,5 +1,7 @@
 # pi-windows-notifier
 
+[Pi package page](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
+
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
 **Built specifically for Windows. Zero dependencies. Security-first alert sound and notification plugin.**
@@ -10,7 +12,9 @@ Notifications stay on your machine. They don't pull questions, commands, file pa
 
 Uses Pi-provided APIs, Node.js built-ins, and the built-in Windows notification and sound APIs—no extra notification library or external audio player to install. The design avoids risky patterns present in many other similar plugins. See [Privacy and process safety](#privacy-and-process-safety) for the protections and their limits.
 
-[Pi package page](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
+## Preview
+
+![](docs/preview.zh-TW.png)
 
 ## Install
 

@@ -1,5 +1,7 @@
 # pi-windows-notifier
 
+[Pi 套件頁](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
+
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
 **專為 Windows 設計。0 依賴套件。以安全為優先的提示音與通知插件。**
@@ -10,7 +12,9 @@
 
 使用 Pi 提供的 API、Node.js built-ins 與 Windows 內建通知和音效 API，不必另裝通知函式庫或外部播放器。設計上避開了許多其他同類套件的高風險做法；具體防護與限制見[隱私與程序安全](#隱私與程序安全)。
 
-[Pi 套件頁](https://pi.dev/packages/pi-windows-notifier) · [GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
+## 預覽
+
+![](docs/preview.zh-TW.png)
 
 ## 安裝
 
