@@ -61,7 +61,9 @@ Some question packages also ring the terminal bell themselves. If you hear an ex
 
 ## Settings
 
-To change the defaults, create `~/.pi/agent/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\pi-windows-notifier\config.json` inside your user home folder. The extension doesn't create or edit this file, and it doesn't read project-level settings.
+To change the defaults, create `~/.pi/agent/extensions/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\extensions\pi-windows-notifier\config.json` inside your user home folder. The extension doesn't create or edit this file, and it doesn't read project-level settings.
+
+The new path takes priority. Only when it doesn't exist does the extension read the old `~/.pi/agent/pi-windows-notifier/config.json`; the two files aren't merged. An invalid or unreadable new file disables notifications instead of falling back. To move your settings, place your existing config at the new path and reload. The extension won't move or rewrite either file.
 
 ### Complete config
 

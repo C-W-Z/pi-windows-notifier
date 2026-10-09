@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaults, parseConfig, loadConfig, CONFIG_LIMIT } from "../src/config.ts";
+import { defaults, parseConfig, loadConfig, configPath, CONFIG_LIMIT } from "../src/config.ts";
 
 test("預設與部分設定合併，不共用可變物件", () => {
   const result = parseConfig({ events: { question: { sound: false } } });
@@ -119,6 +119,63 @@ test("雙語 README 的完整設定涵蓋所有欄位與五種事件，且等同
     assert.equal(result.ok, true);
     assert.deepEqual(result.config, defaults());
   }
+});
+test("預設設定路徑位於全域 extensions 的套件目錄", () => {
+  assert.equal(configPath(), join(homedir(), ".pi", "agent", "extensions", "pi-windows-notifier", "config.json"));
+});
+test("新位置優先且不合併舊設定；不存在才相容舊位置，不建立或改寫檔案", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-notifier-paths-"));
+  const primary = join(dir, "new.json");
+  const legacy = join(dir, "old.json");
+  try {
+    assert.deepEqual(loadConfig(primary, legacy), { ok: true, config: defaults() });
+    for (const text of [
+      JSON.stringify({ enabled: false, events: { completed: { sound: false } } }),
+      JSON.stringify({ schemaVersion: 2, defaults: { toast: { title: "舊位置" } } }),
+    ]) {
+      writeFileSync(legacy, text);
+      assert.deepEqual(loadConfig(primary, legacy), parseConfig(JSON.parse(text)));
+      assert.equal(readFileSync(legacy, "utf8"), text);
+      assert.equal(existsSync(primary), false);
+    }
+    writeFileSync(primary, JSON.stringify({ schemaVersion: 2, enabled: false }));
+    assert.equal(loadConfig(primary, legacy).config.enabled, false);
+    assert.equal(loadConfig(primary, legacy).config.events.completed.toast.title, "Pi");
+    // 新檔即使沒有覆寫欄位，也不從舊檔合併。
+    writeFileSync(primary, "{}");
+    assert.deepEqual(loadConfig(primary, legacy), { ok: true, config: defaults() });
+    assert.equal(readFileSync(primary, "utf8"), "{}");
+    assert.equal(readFileSync(legacy, "utf8"), JSON.stringify({ schemaVersion: 2, defaults: { toast: { title: "舊位置" } } }));
+  } finally { rmSync(dir, { recursive: true }); } // 僅清理此測試自行產生的暫存目錄。
+});
+test("新位置有錯誤不改讀舊檔；舊位置有錯誤同樣停用通知", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pi-notifier-path-errors-"));
+  const primary = join(dir, "new.json");
+  const legacy = join(dir, "old.json");
+  try {
+    writeFileSync(legacy, "{}");
+    for (const [text, code] of [
+      ["{", "CONFIG_INVALID"],
+      [JSON.stringify({ schemaVersion: 2, unknown: true }), "CONFIG_INVALID"],
+      [" ".repeat(CONFIG_LIMIT + 1), "CONFIG_TOO_LARGE"],
+    ]) {
+      writeFileSync(primary, text);
+      const result = loadConfig(primary, legacy);
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.code, code);
+      assert.equal(result.config.enabled, false);
+    }
+    const unreadable = loadConfig(dir, legacy);
+    assert.equal(unreadable.ok, false);
+    if (!unreadable.ok) assert.equal(unreadable.code, "CONFIG_READ_FAILED");
+    assert.equal(unreadable.config.enabled, false);
+    writeFileSync(legacy, "{");
+    const invalidLegacy = loadConfig(join(dir, "missing.json"), legacy);
+    assert.equal(invalidLegacy.ok, false);
+    if (!invalidLegacy.ok) assert.equal(invalidLegacy.code, "CONFIG_INVALID");
+    assert.equal(invalidLegacy.config.enabled, false);
+    assert.equal(readFileSync(legacy, "utf8"), "{");
+  } finally { rmSync(dir, { recursive: true }); } // 僅清理此測試自行產生的暫存目錄。
 });
 test("讀取有界檔案，不存在使用預設，錯誤停用", () => {
   const dir = mkdtempSync(join(tmpdir(), "pi-notifier-config-"));

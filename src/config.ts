@@ -94,9 +94,16 @@ export function parseConfig(value: unknown): ConfigResult {
 }
 export const CONFIG_LIMIT = 16 * 1024;
 export function configPath(): string {
-  return join(homedir(), ".pi", "agent", "pi-windows-notifier", "config.json");
+  return join(homedir(), ".pi", "agent", "extensions", "pi-windows-notifier", "config.json");
 }
-export function loadConfig(path = configPath()): ConfigResult {
+/** 預設先讀新位置，只有檔案不存在才讀舊位置；明確傳入路徑時不讀取其他使用者設定。 */
+export function loadConfig(path?: string, fallbackPath?: string): ConfigResult {
+  const primary = path ?? configPath();
+  const legacy = fallbackPath ?? (path === undefined
+    ? join(homedir(), ".pi", "agent", "pi-windows-notifier", "config.json") : undefined);
+  return readConfig(primary) ?? (legacy ? readConfig(legacy) : undefined) ?? { ok: true, config: defaults() };
+}
+function readConfig(path: string): ConfigResult | undefined {
   let fd: number | undefined;
   try {
     fd = openSync(path, "r");
@@ -112,7 +119,7 @@ export function loadConfig(path = configPath()): ConfigResult {
     try { return parseConfig(JSON.parse(buffer.subarray(0, size).toString("utf8"))); }
     catch { return { ok: false, code: "CONFIG_INVALID", config: { ...defaults(), enabled: false } }; }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ok: true, config: defaults() };
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     return { ok: false, code: "CONFIG_READ_FAILED", config: { ...defaults(), enabled: false } };
   } finally {
     if (fd !== undefined) closeSync(fd);

@@ -61,7 +61,9 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 ## 設定
 
-想改預設行為時，請自行建立 `~/.pi/agent/pi-windows-notifier/config.json`。在 Windows 上，就是使用者家目錄裡的 `.pi\agent\pi-windows-notifier\config.json`。套件不會替你建立或修改這個檔案，也不讀專案內的設定。
+想改預設行為時，請自行建立 `~/.pi/agent/extensions/pi-windows-notifier/config.json`。在 Windows 上，就是使用者家目錄裡的 `.pi\agent\extensions\pi-windows-notifier\config.json`。套件不會替你建立或修改這個檔案，也不讀專案內的設定。
+
+新路徑優先；只有新檔案不存在時，才讀舊的 `~/.pi/agent/pi-windows-notifier/config.json`，兩份設定不會合併。新檔案若無效或無法讀取，會停用通知，不會改讀舊檔。想搬移設定時，請自行將原本的設定檔放到新路徑後 reload；套件不會搬動或改寫任何一份檔案。
 
 ### 完整設定範例
 
