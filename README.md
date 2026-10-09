@@ -135,8 +135,8 @@ Settings are applied in this order: **built-in event defaults → shared `defaul
 
 The `toast` and `sound` fields can appear under either `defaults` or an individual event. **The complete example explicitly sets every event field, so changing `defaults` alone won't change those overrides.** Remove the corresponding event fields if you want them to inherit shared settings. When setting `sound.source`, include both `type` and `name`; it replaces the source as a whole.
 
-- **Toast only:** set `sound.enabled` to `false` and `toast.enabled` to `true`.
-- **Sound only:** set `toast.enabled` to `false` and `sound.enabled` to `true`.
+- **Toast only**: set `sound.enabled` to `false` and `toast.enabled` to `true`.
+- **Sound only**: set `toast.enabled` to `false` and `sound.enabled` to `true`.
 - If both channels are off, no helper starts. Event settings can override shared channel switches, but can't override a disabled master or event switch.
 
 Without a config file, all events and channels are enabled, the title is Pi, and messages are in English. Completion uses Asterisk; the other events use Exclamation.
@@ -149,7 +149,7 @@ Sound names select **Windows system sound events**, not separate audio files bun
 
 ### Apply changes and older configs
 
-After editing the file, run `/windows-notifier reload`. Unknown fields, unsupported versions or sound sources, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
+After editing the file, run `/reload` or `/windows-notifier reload`. Unknown fields, unsupported versions or sound sources, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
 
 The old unversioned format, with a boolean such as `events.completed.sound: false`, still works and is converted in memory without rewriting your file. New channel objects require `schemaVersion: 2`; don't mix old sound booleans with v2 objects.
 
@@ -169,19 +169,6 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to complete `stat
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
 
 **Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.
-
-## Privacy and process safety
-
-This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, or custom sound files.
-
-- PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
-- The helper runs without a shell. It receives only the event type, validated channel settings, and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
-- The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
-- Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
-- It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
-- Decisions, finished questions, new runs, reloads, session changes, and shutdown cancel the relevant old work. A toast already shown can't be taken back, and cancellation can race with submission to Windows.
-
-These safeguards assume that Windows' system directories, Pi's startup environment, and installed packages are trustworthy. They don't protect against a malicious extension running in the same process or a compromised user account. Pi's permission system doesn't sandbox extensions at the OS level.
 
 ## FAQ
 
@@ -205,6 +192,19 @@ Use `/windows-notifier status` to check these codes:
 | `INPUT_INVALID` / `INTERNAL_ERROR` / `HELPER_PROTOCOL` | Check the package installation and helper protocol |
 
 Automatic errors show at most one terminal warning per minute. Status uses fixed diagnostic codes rather than raw PowerShell error output.
+
+## Privacy and process safety
+
+This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, or custom sound files.
+
+- PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
+- The helper runs without a shell. It receives only the event type, validated channel settings, and static config text through stdin. Text is inserted using DOM text nodes, not interpolated into PowerShell commands or XML. No session content is passed to it.
+- The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
+- Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
+- It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
+- Decisions, finished questions, new runs, reloads, session changes, and shutdown cancel the relevant old work. A toast already shown can't be taken back, and cancellation can race with submission to Windows.
+
+These safeguards assume that Windows' system directories, Pi's startup environment, and installed packages are trustworthy. They don't protect against a malicious extension running in the same process or a compromised user account. Pi's permission system doesn't sandbox extensions at the OS level.
 
 ## Development
 
