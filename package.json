@@ -1,6 +1,6 @@
 {
   "name": "pi-windows-notifier",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi 的 Windows Toast 與系統提示音：權限、結構化提問及回應結束通知。",
   "type": "module",
   "license": "MIT",
