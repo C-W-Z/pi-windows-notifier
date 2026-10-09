@@ -1,0 +1,41 @@
+{
+  "name": "pi-windows-notifier",
+  "version": "0.1.0",
+  "description": "Pi 的 Windows Toast 與系統提示音：權限、結構化提問及回應結束通知。",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "windows",
+    "notifications"
+  ],
+  "files": [
+    "src/**/*.ts",
+    "src/windows-notify.ps1",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "@types/node": "^22.15.3",
+    "typescript": "^6.0.3"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "verify": "npm run check && npm test"
+  }
+}
