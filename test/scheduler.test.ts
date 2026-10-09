@@ -3,17 +3,17 @@ import { test } from "node:test";
 import { defaults } from "../src/config.ts";
 import { NotificationScheduler, QUEUE_TTL } from "../src/scheduler.ts";
 import type { Backend, LaunchResult } from "../src/launcher.ts";
-import type { NotificationJob } from "../src/types.ts";
+import type { NotificationJob, NotificationPayload } from "../src/types.ts";
 import { FakeClock, flush } from "./clock.ts";
 
 const ok: LaunchResult = { code: "OK", toast: true, sound: "played" };
 function fixture() {
   const clock = new FakeClock();
   const config = defaults();
-  const calls: Array<{ kind: string; sound: boolean; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
+  const calls: Array<{ kind: string; payload: NotificationPayload; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
   const diagnostics: string[] = [];
-  const backend: Backend = { available: true, code: "OK", launch: (kind, sound, signal) =>
-    new Promise(resolve => { calls.push({ kind, sound, signal, resolve });
+  const backend: Backend = { available: true, code: "OK", launch: (payload, signal) =>
+    new Promise(resolve => { calls.push({ kind: payload.kind, payload, signal, resolve });
       signal.addEventListener("abort", () => resolve({ code: "CANCELLED", toast: false, sound: "failed" }), { once: true });
     }) };
   const scheduler = new NotificationScheduler(backend, () => config, code => diagnostics.push(code), clock);
@@ -84,11 +84,11 @@ test("分事件開關與靜音、重複 key、close 可重複且終止自己的�
   const { scheduler, clock, config, calls, job } = fixture();
   config.events.permission.enabled = false;
   assert.equal((await scheduler.submit(job("p", "permission"))).status, "disabled");
-  config.events.question.sound = false;
+  config.events.question.sound.enabled = false;
   const pending = scheduler.submit(job("q"));
   assert.equal((await scheduler.submit(job("q"))).status, "cancelled");
   clock.advance(0);
-  assert.equal(calls[0].sound, false);
+  assert.equal(calls[0].payload.sound.enabled, false);
   const queued = scheduler.submit(job("queued"));
   await scheduler.close();
   await scheduler.close();
@@ -96,6 +96,44 @@ test("分事件開關與靜音、重複 key、close 可重複且終止自己的�
   assert.equal((await pending).status, "cancelled");
   assert.equal((await queued).status, "cancelled");
   assert.equal(clock.count(), 0);
+});
+test("獨立通道、兩者關閉、排隊後重新讀取設定與 payload 快照", async () => {
+  const { scheduler, clock, config, calls, job } = fixture();
+  config.events.question.toast.enabled = false;
+  config.events.question.sound.enabled = false;
+  assert.equal((await scheduler.submit(job("none"))).status, "disabled");
+  assert.equal(clock.count(), 0);
+  config.events.question.sound.enabled = true;
+  const soundOnly = scheduler.submit(job("sound"));
+  config.events.question.toast.title = "自訂";
+  config.events.question.sound.source.name = "Hand";
+  clock.advance(0);
+  assert.equal(calls[0].payload.toast.enabled, false);
+  assert.equal(calls[0].payload.toast.title, "自訂");
+  assert.equal(calls[0].payload.sound.source.name, "Hand");
+  config.events.question.sound.source.name = "Beep";
+  assert.equal(calls[0].payload.sound.source.name, "Hand");
+  calls[0].resolve({ code: "OK", toast: false, sound: "played" });
+  assert.equal((await soundOnly).status, "submitted");
+  await flush();
+  config.events.question.toast.enabled = true;
+  config.events.question.sound.enabled = false;
+  const toastOnly = scheduler.submit(job("toast"));
+  clock.advance(1_000);
+  assert.equal(calls[1].payload.sound.enabled, false);
+  calls[1].resolve({ code: "OK", toast: true, sound: "disabled" });
+  assert.equal((await toastOnly).status, "submitted");
+  await scheduler.close();
+});
+test("排隊後關閉兩個通道會取消提交，不啟動 helper", async () => {
+  const { scheduler, clock, config, calls, job } = fixture();
+  const pending = scheduler.submit(job("off"));
+  config.events.question.toast.enabled = false;
+  config.events.question.sound.enabled = false;
+  clock.advance(0);
+  assert.equal((await pending).status, "disabled");
+  assert.equal(calls.length, 0);
+  await scheduler.close();
 });
 test("部分成功、launcher 失敗不拋錯且不自動重試", async () => {
   const { scheduler, clock, calls, job } = fixture();

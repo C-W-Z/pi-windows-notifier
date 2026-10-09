@@ -47,7 +47,8 @@ export class NotificationScheduler {
   }
   private enabled(job: NotificationJob): boolean {
     const config = this.config();
-    return !this.closed && this.backend.available && config.enabled && config.events[job.kind].enabled;
+    const event = config.events[job.kind];
+    return !this.closed && this.backend.available && config.enabled && event.enabled && (event.toast.enabled || event.sound.enabled);
   }
   private valid(job: NotificationJob): boolean {
     try { return job.valid(); } catch { return false; }
@@ -114,7 +115,11 @@ export class NotificationScheduler {
   }
   private async deliver(item: Pending, signal: AbortSignal): Promise<void> {
     let result: LaunchResult;
-    try { result = await this.backend.launch(item.job.kind, this.config().events[item.job.kind].sound, signal); }
+    try {
+      const event = this.config().events[item.job.kind];
+      result = await this.backend.launch({ kind: item.job.kind, toast: { ...event.toast },
+        sound: { enabled: event.sound.enabled, source: { ...event.sound.source } } }, signal);
+    }
     catch { result = { code: "LAUNCH_FAILED", toast: false, sound: "failed" }; }
     if (signal.aborted || result.code === "CANCELLED") { item.resolve({ status: "cancelled" }); return; }
     if (result.code !== "OK") this.diagnose(result.code);

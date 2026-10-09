@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { defaults, type ConfigResult } from "../src/config.ts";
+import { defaults, parseConfig, type ConfigResult } from "../src/config.ts";
+import type { NotificationPayload } from "../src/types.ts";
 import type { Backend, LaunchResult } from "../src/launcher.ts";
 import { registerNotifier } from "../src/runtime.ts";
 import { FakeClock, flush } from "./clock.ts";
@@ -12,7 +13,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   const handlers = new Map<string, Hook[]>();
   const listeners = new Map<string, Set<(raw: unknown) => void>>();
   const messages: string[] = [];
-  const calls: Array<{ kind: string; sound: boolean; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
+  const calls: Array<{ kind: string; payload: NotificationPayload; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
   let command: (args: string, context: ExtensionCommandContext) => Promise<void>;
   let makeCount = 0;
   let result: ConfigResult = options.result ?? { ok: true, config: defaults() };
@@ -33,9 +34,9 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
     },
     registerCommand(_name: string, spec: { handler: typeof command }) { command = spec.handler; },
   } as unknown as ExtensionAPI;
-  const backend: Backend = { available: true, code: "OK", launch: (kind, sound, signal) => new Promise(resolve => {
-    calls.push({ kind, sound, signal, resolve });
-    if (!options.slow) resolve({ code: "OK", toast: true, sound: sound ? "played" : "disabled" });
+  const backend: Backend = { available: true, code: "OK", launch: (payload, signal) => new Promise(resolve => {
+    calls.push({ kind: payload.kind, payload, signal, resolve });
+    if (!options.slow) resolve({ code: "OK", toast: payload.toast.enabled, sound: payload.sound.enabled ? "played" : "disabled" });
   }) };
   registerNotifier(api, { platform: options.platform ?? "win32", arch: "x64", clock, readConfig: () => result,
     backend: () => { makeCount++; return backend; } });
@@ -139,6 +140,29 @@ test("無效設定 fail closed，test 不繞過開關；reload 清除舊事件",
   assert.ok(h.messages.some(message => message.includes("已提交")));
   await h.command("test $(SECRET)");
   assert.equal(h.messages.join().includes("SECRET"), false);
+  await h.hook("session_shutdown");
+});
+test("自訂文字可送達 backend，但 status、警告及 test 結果不展示設定文字", async () => {
+  const h = harness({ result: parseConfig({ schemaVersion: 2, defaults: {
+    toast: { enabled: false, title: "PRIVATE_TITLE", message: "PRIVATE_MESSAGE" },
+    sound: { source: { type: "system", name: "Question" } },
+  } }) });
+  await h.hook("session_start");
+  const pending = h.command("test permission");
+  await h.tick();
+  await pending;
+  assert.equal(h.calls[0].payload.toast.title, "PRIVATE_TITLE");
+  assert.equal(h.calls[0].payload.toast.message, "PRIVATE_MESSAGE");
+  assert.equal(h.calls[0].payload.sound.source.name, "Question");
+  await h.command("status");
+  assert.equal(h.messages.join().includes("PRIVATE_"), false);
+  const status = JSON.parse(h.messages.at(-1)!);
+  assert.equal(status.events.permission.toast.enabled, false);
+  assert.equal(status.schemaVersion, 2);
+  h.setResult(parseConfig({ schemaVersion: 2, defaults: { toast: { title: "PRIVATE_TITLE", message: 42 } } }));
+  await h.command("reload");
+  await h.command("status");
+  assert.equal(h.messages.join().includes("PRIVATE_"), false);
   await h.hook("session_shutdown");
 });
 test("同時 reload 會等待舊 helper close，不能提前建立第二個 backend", async () => {

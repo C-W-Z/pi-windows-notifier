@@ -2,7 +2,7 @@ import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process"
 import { statSync } from "node:fs";
 import { dirname, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isRecord, type NotificationKind } from "./types.ts";
+import { isRecord, validPayload, type NotificationPayload } from "./types.ts";
 
 export const HELPER_TIMEOUT = 10_000;
 export const OUTPUT_LIMIT = 8 * 1024;
@@ -17,7 +17,7 @@ export interface LaunchResult {
 export interface Backend {
   available: boolean;
   code: string;
-  launch(kind: NotificationKind, sound: boolean, signal: AbortSignal): Promise<LaunchResult>;
+  launch(payload: NotificationPayload, signal: AbortSignal): Promise<LaunchResult>;
 }
 const SCRIPT = fileURLToPath(new URL("./windows-notify.ps1", import.meta.url));
 const ENV_KEYS = ["SystemRoot", "windir", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "USERNAME", "USERDOMAIN"];
@@ -43,7 +43,7 @@ export function windowsPaths(env: NodeJS.ProcessEnv): { executable: string; env:
   return { executable: win32.join(clean, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), env: result };
 }
 function failed(code: LaunchCode): LaunchResult { return { code, toast: false, sound: "failed" }; }
-function parseResult(output: Buffer, exitCode: number | null, sound: boolean): LaunchResult {
+function parseResult(output: Buffer, exitCode: number | null, payload: NotificationPayload): LaunchResult {
   try {
     const parsed: unknown = JSON.parse(output.toString("utf8").trim());
     if (!isRecord(parsed) || Object.keys(parsed).length !== 3 ||
@@ -51,13 +51,14 @@ function parseResult(output: Buffer, exitCode: number | null, sound: boolean): L
         typeof parsed.sound !== "string" || !["played", "disabled", "failed"].includes(parsed.sound)) return failed("HELPER_PROTOCOL");
     const code = parsed.code as LaunchCode;
     const audio = parsed.sound as LaunchResult["sound"];
-    const expected = parsed.toast
-      ? (audio === "failed" ? "SOUND_FAILED" : "OK")
-      : (audio === "failed" ? "BOTH_FAILED" : "TOAST_FAILED");
-    if (audio === "disabled" && sound || audio === "played" && !sound) return failed("HELPER_PROTOCOL");
     if (["INPUT_INVALID", "INTERNAL_ERROR"].includes(code)) {
-      return !parsed.toast && audio === "failed" && exitCode !== 0 ? failed(code) : failed("HELPER_PROTOCOL");
+      return !parsed.toast && audio === "failed" && exitCode === 1 ? failed(code) : failed("HELPER_PROTOCOL");
     }
+    if ((!payload.toast.enabled && parsed.toast) ||
+        (payload.sound.enabled ? audio === "disabled" : audio !== "disabled")) return failed("HELPER_PROTOCOL");
+    const toastFailed = payload.toast.enabled && !parsed.toast;
+    const soundFailed = payload.sound.enabled && audio === "failed";
+    const expected = toastFailed ? (soundFailed ? "BOTH_FAILED" : "TOAST_FAILED") : (soundFailed ? "SOUND_FAILED" : "OK");
     if (code !== expected || exitCode !== (code === "OK" ? 0 : 1)) return failed("HELPER_PROTOCOL");
     return { code, toast: parsed.toast, sound: audio };
   } catch { return failed("HELPER_PROTOCOL"); }
@@ -83,7 +84,11 @@ export function createWindowsBackend(options: BackendOptions = {}): Backend {
   const code = available ? "OK" : "BACKEND_UNAVAILABLE";
   return {
     available, code,
-    launch(kind, sound, signal) {
+    launch(payload, signal) {
+      if (!validPayload(payload)) return Promise.resolve(failed("INPUT_INVALID"));
+      // 再建立白名單快照，避免呼叫方中途修改設定或額外傳入事件內容。
+      const request: NotificationPayload = { kind: payload.kind, toast: { ...payload.toast },
+        sound: { enabled: payload.sound.enabled, source: { ...payload.sound.source } } };
       if (!available || !paths) return Promise.resolve(failed("BACKEND_UNAVAILABLE"));
       if (signal.aborted) return Promise.resolve(failed("CANCELLED"));
       return new Promise(resolve => {
@@ -130,11 +135,11 @@ export function createWindowsBackend(options: BackendOptions = {}): Backend {
           if (stderrSize > OUTPUT_LIMIT) stop("OUTPUT_LIMIT");
           // 不保存或展示 PowerShell 的原始錯誤文字。
         });
-        child.once("close", exitCode => finish(reason ? failed(reason) : parseResult(output, exitCode, sound)));
+        child.once("close", exitCode => finish(reason ? failed(reason) : parseResult(output, exitCode, request)));
         child.stdin?.on("error", () => stop("LAUNCH_FAILED"));
         child.stdout?.on("error", () => stop("LAUNCH_FAILED"));
         child.stderr?.on("error", () => stop("LAUNCH_FAILED"));
-        try { child.stdin?.end(JSON.stringify({ kind, sound })); }
+        try { child.stdin?.end(JSON.stringify(request)); }
         catch { stop("LAUNCH_FAILED"); }
         if (signal.aborted) onAbort();
       });
