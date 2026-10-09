@@ -105,7 +105,7 @@ Without a config file, all channels are enabled, the title is Pi, messages descr
 - Set `events.<event>.enabled` to `false` to turn that event off.
 - `toast.enabled` and `sound.enabled` let you use either channel on its own. If both are off, no helper starts.
 - `toast.title` and `toast.message` set the text shown in the toast.
-- `sound.source` chooses a sound. Only `type: "system"` is supported, with `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`. Names are case-sensitive. When setting `source`, include both `type` and `name`; it replaces the source as a whole.
+- `sound.source` chooses a sound. Only `type: "system"` is supported, with `Asterisk`, `Beep`, `Exclamation`, `Hand`, or `Question`. Names are case-sensitive. When setting `source`, include both `type` and `name`; it replaces the source as a whole. These names select Windows system sound events; the package doesn't bundle separate audio files. The sound you hear depends on your active Windows sound scheme: different event names can be mapped to the same sound, or to no sound, so some choices may sound identical. You can review or change these mappings in the Windows Sound settings.
 
 ### Custom title and message
 

@@ -105,7 +105,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 - `events.<事件>.enabled` 可以關閉整個事件。
 - `toast.enabled` 和 `sound.enabled` 各自控制彈窗與音效，可以只開其中一個；兩個都關閉時，不會啟動 helper。
 - `toast.title` 和 `toast.message` 設定彈窗的標題與訊息。
-- `sound.source` 選擇音效。目前只支援 `type: "system"`，名稱可以是 `Asterisk`、`Beep`、`Exclamation`、`Hand` 或 `Question`，大小寫要一致。設定 `source` 時必須一起提供 `type` 和 `name`，它會整組取代原本的來源。
+- `sound.source` 選擇音效。目前只支援 `type: "system"`，名稱可以是 `Asterisk`、`Beep`、`Exclamation`、`Hand` 或 `Question`，大小寫要一致。設定 `source` 時必須一起提供 `type` 和 `name`，它會整組取代原本的來源。這些名稱選的是 Windows 系統音效事件，套件本身沒有附音效檔。實際播放的聲音取決於目前的 Windows 音效配置；不同事件可能被設成播放同一個聲音，也可能沒有對應音效，所以聽起來可能一樣。你可以在 Windows「音效」設定中查看或修改這些對應。
 
 ### 自訂標題與訊息
 
