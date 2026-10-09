@@ -105,6 +105,9 @@ test("Esc 優先於成功、空 run 不報成功、工具錯誤不等於模型�
   state.settled({ aborted: false });
   assert.equal(jobs.length, 0);
   state.agentStart();
+  state.settled({ aborted: true });
+  assert.equal(jobs.length, 0);
+  state.agentStart();
   state.messageEnd({ message: { role: "toolResult", isError: true } });
   state.messageEnd({ message: { role: "assistant", stopReason: "stop" } });
   state.settled({ aborted: true });

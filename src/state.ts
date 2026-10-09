@@ -129,7 +129,7 @@ export class NotificationState {
   settled(raw: unknown): void {
     if (!this.running || !isRecord(raw) || typeof raw.aborted !== "boolean") return;
     this.running = false;
-    const kind = raw.aborted || this.outcome === "aborted" ? "aborted" :
+    const kind = (raw.aborted || this.outcome === "aborted") && this.assistantSeen ? "aborted" :
       this.outcome === "error" ? "failed" : this.assistantSeen ? "completed" : undefined;
     if (!kind) return;
     const generation = this.generation;
