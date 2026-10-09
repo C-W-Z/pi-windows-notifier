@@ -182,7 +182,7 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 ## 指令
 
-在 Pi 裡執行：
+在 Pi 裡執行。輸入 `/windows-notifier ` 後按 **Tab**，可以補全 `status`、`reload` 或 `test`；輸入 `test ` 後，Tab 會補全事件名稱，也支援 `test co` 這類前綴。
 
 ```text
 /windows-notifier status

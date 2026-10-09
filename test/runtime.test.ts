@@ -8,6 +8,7 @@ import { registerNotifier } from "../src/runtime.ts";
 import { FakeClock, flush } from "./clock.ts";
 
 type Hook = (event: unknown, context: ExtensionContext) => unknown;
+type GetCompletions = NonNullable<Parameters<ExtensionAPI["registerCommand"]>[1]["getArgumentCompletions"]>;
 function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: ConfigResult; slow?: boolean } = {}) {
   const clock = new FakeClock();
   const handlers = new Map<string, Hook[]>();
@@ -15,6 +16,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   const messages: string[] = [];
   const calls: Array<{ kind: string; payload: NotificationPayload; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
   let command: (args: string, context: ExtensionCommandContext) => Promise<void>;
+  let completions: GetCompletions;
   let makeCount = 0;
   let result: ConfigResult = options.result ?? { ok: true, config: defaults() };
   const context = { mode: options.mode ?? "tui", hasUI: !["print", "json"].includes(options.mode ?? "tui"),
@@ -32,7 +34,10 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
         return () => { set.delete(handler); };
       },
     },
-    registerCommand(_name: string, spec: { handler: typeof command }) { command = spec.handler; },
+    registerCommand(_name: string, spec: { handler: typeof command; getArgumentCompletions: GetCompletions }) {
+      command = spec.handler;
+      completions = spec.getArgumentCompletions;
+    },
   } as unknown as ExtensionAPI;
   const backend: Backend = { available: true, code: "OK", launch: (payload, signal) => new Promise(resolve => {
     calls.push({ kind: payload.kind, payload, signal, resolve });
@@ -51,9 +56,41 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
     },
     bus: (channel: string, raw: unknown) => { for (const fn of listeners.get(channel) ?? []) fn(raw); },
     command: (args: string) => command(args, context as ExtensionCommandContext),
+    complete: (prefix: string) => completions(prefix),
     tick: async (ms = 0) => { clock.advance(ms); await flush(); },
   };
 }
+test("指令參數補全涵蓋子指令、事件前綴及完整替換值，不啟動 backend", async () => {
+  const h = harness();
+  assert.deepEqual(await h.complete(""), [
+    { value: "status", label: "status" }, { value: "reload", label: "reload" }, { value: "test", label: "test" },
+  ]);
+  assert.deepEqual(await h.complete("te"), [{ value: "test", label: "test" }]);
+  assert.deepEqual(await h.complete("r"), [{ value: "reload", label: "reload" }]);
+  assert.deepEqual(await h.complete("  st"), [{ value: "  status", label: "status" }]);
+  assert.deepEqual(await h.complete("test "), ["permission", "question", "completed", "aborted", "failed"]
+    .map(kind => ({ value: "test " + kind, label: kind })));
+  assert.deepEqual(await h.complete("test c"), [{ value: "test completed", label: "completed" }]);
+  assert.deepEqual(await h.complete(" test   q"), [{ value: " test   question", label: "question" }]);
+  assert.equal(h.makeCount(), 0);
+  assert.equal(h.calls.length, 0);
+});
+test("無效或過多的指令參數不補全；已啟動 session 的補全不產生通知", async () => {
+  const h = harness();
+  await h.hook("session_start");
+  for (const prefix of ["unknown", "status ", "reload x", "test nope", "test completed ", "test completed x", "Test "])
+    assert.equal(await h.complete(prefix), null);
+  const suggestions = await h.complete("test co");
+  assert.deepEqual(suggestions, [{ value: "test completed", label: "completed" }]);
+  // 模擬 Pi 以 value 取代整段參數，不會遺失 test。
+  const line = "/windows-notifier test co";
+  const prefix = "test co";
+  assert.equal(line.slice(0, -prefix.length) + suggestions![0].value, "/windows-notifier test completed");
+  await h.tick();
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.messages.length, 0);
+  await h.hook("session_shutdown");
+});
 test("factory 不啟動 backend，session 重建與 shutdown 不累積 listener 或 timer", async () => {
   const h = harness();
   assert.equal(h.makeCount(), 0);

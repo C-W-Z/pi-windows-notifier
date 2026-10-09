@@ -182,7 +182,7 @@ After editing the file, run `/windows-notifier reload`. Unknown fields, unsuppor
 
 ## Commands
 
-Run these inside Pi:
+Run these inside Pi. After `/windows-notifier `, press **Tab** to complete `status`, `reload`, or `test`. After `test `, Tab completes the event name; partial prefixes such as `test co` also work.
 
 ```text
 /windows-notifier status
