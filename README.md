@@ -118,7 +118,9 @@ This extension uses Windows' built-in notification and sound APIs through a fixe
 
 These safeguards assume that Windows' system directories, Pi's startup environment, and installed packages are trustworthy. They don't protect against a malicious extension running in the same process or a compromised user account. Pi's permission system doesn't sandbox extensions at the OS level.
 
-## If a notification doesn't appear
+## FAQ
+
+### Why aren't notifications showing up?
 
 Windows still has the final say. Do Not Disturb, notification settings, your sound scheme, and muted audio can suppress a toast or sound even after the API accepts it.
 
