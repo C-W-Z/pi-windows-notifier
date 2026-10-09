@@ -53,9 +53,9 @@ pi remove npm:pi-windows-notifier
 
 彈窗標題預設是 **Pi**，預設訊息是英文。每個事件都能設定自己的標題與訊息；狀態輸出是英文，其他指令提示仍是繁體中文，沒有整體語言切換設定。
 
-**權限提醒**搭配 `@gotgenes/pi-permission-system` 使用，也支援從 subagent 轉送到父 session 的權限請求。自動允許、自動拒絕，或已經有 session approval 的請求不會提醒。
+**權限提醒**搭配 [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system) 使用，也支援從 subagent 轉送到父 session 的權限請求。自動允許、自動拒絕，或已經有 session approval 的請求不會提醒。
 
-**問題提醒**支援 `ask_user_question`（包含 RPIV Lean）和 `plan_mode_question`。一份問卷只提醒一次，不會每一題都響。模型在一般文字回答裡寫的問句，以及你手動打開的設定介面，不算這裡的提問。
+**問題提醒**支援 [`@juicesharp/rpiv-ask-user-question`](https://pi.dev/packages/@juicesharp/rpiv-ask-user-question)（包含 [`@ssk_dev/rpiv-ask-user-question-lean`](https://pi.dev/packages/@ssk_dev/rpiv-ask-user-question-lean)）和 [`@narumitw/pi-plan-mode`](https://pi.dev/packages/@narumitw/pi-plan-mode)。一份問卷只提醒一次，不會每一題都響。模型在一般文字回答裡寫的問句，以及你手動打開的設定介面，不算這裡的提問。
 
 **回應結束提醒**會等 Pi 真正結束這次回應才發送，不會在自動重試或續跑途中提早報完成。單一工具出錯，也不等於整次模型回應失敗。
 
