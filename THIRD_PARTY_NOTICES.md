@@ -1,11 +1,12 @@
-# 上游來源與授權
+# Third-party notices
 
 ## pi-permission-windows-notifier
 
-- 來源：https://github.com/zhangyu-ch/pi-permission-windows-notifier
-- 參考：988decb1a28a38a6d5b8aa940ec2ceca22088c54
-- 範圍：權限事件、WinRT DOM text node、固定 PowerShell AppID、系統音效及 Toast silent。
-- 本 package 重寫執行檔定位、stdin 協定、資源限制、取消、設定與狀態機。沿用／改作片段保留以下原始 MIT 授權：
+- Source: https://github.com/zhangyu-ch/pi-permission-windows-notifier
+- Reference commit: `988decb1a28a38a6d5b8aa940ec2ceca22088c54`
+- Referenced features: permission events, WinRT DOM text nodes, the fixed PowerShell AppID, system sounds, and silent toast audio.
+
+This package rewrites executable resolution, the stdin protocol, resource limits, cancellation, configuration, and the state machine. The following original MIT notice is retained for reused or adapted portions:
 
 ```text
 MIT License
@@ -31,8 +32,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 其他研究參考
+## Other references
 
-- UniPi notify：https://github.com/Neuron-Mr-White/UniPi/tree/main/packages/notify，參考 6ac5da3。只參考事件／backend 分層概念，未複製程式碼或引入 UniPi core／node-notifier。
-- pi-jingle：https://github.com/Git-Monke/pi-jingle，參考 7e265ce。只參考事件音效概念，未複製程式碼或音效，因為尚未確認其授權。
-- Pi、permission system、RPIV／Lean、Plan mode 的 API／原始碼用於核對整合契約，不把第三方程式碼放入發布包。
+- [UniPi notify](https://github.com/Neuron-Mr-White/UniPi/tree/main/packages/notify), reference commit `6ac5da3`: consulted for event/backend separation. No code was copied, and neither UniPi core nor node-notifier is included.
+- [pi-jingle](https://github.com/Git-Monke/pi-jingle), reference commit `7e265ce`: consulted for the idea of event-specific sounds. Its license was not confirmed during development, so no code or audio assets were copied.
+- Pi, pi-permission-system, RPIV/Lean, and Plan mode APIs and source were consulted to verify integration contracts. Their source code is not bundled in this package.

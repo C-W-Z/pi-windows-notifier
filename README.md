@@ -1,51 +1,69 @@
 # pi-windows-notifier
 
-Pi 的 Windows 本機通知 extension：需要授權、回答結構化問題，或整次模型回應結束時，提交右下角 Toast 並播放系統提示音。
+[English](README.md) | [繁體中文](README.zh-TW.md)
 
-**Windows-only、零額外 runtime dependencies、沒有網路通知。** 只觀察事件，不批准權限、不代答，也不改寫第三方工具。
+Get a Windows notification when Pi needs your attention—or when it's finished responding. The extension shows a toast and plays a system sound for permission requests, structured questions, and completed, interrupted, or failed responses, even while you're looking at another window.
 
-- GitHub：[C-W-Z/pi-windows-notifier](https://github.com/C-W-Z/pi-windows-notifier)
-- npm：[pi-windows-notifier](https://www.npmjs.com/package/pi-windows-notifier)
+Notifications stay on your machine and only tell you what happened. They don't include your questions, commands, file paths, or Pi's replies. The extension doesn't approve permissions or answer questions for you.
 
-## 安裝
+[GitHub](https://github.com/C-W-Z/pi-windows-notifier) · [npm](https://www.npmjs.com/package/pi-windows-notifier)
+
+## Install
 
 ```bash
 pi install npm:pi-windows-notifier
 ```
 
-需要 Windows 10／11、64 位元 Node.js 22.19+（x64 或 arm64）、Pi 1.1.0+ 與 Windows PowerShell 5.1。僅支援互動式 TUI；RPC、print、JSON、非 Windows 與 32 位元 Node 環境會停用通知。舊版 Pi UI event API 不支援。
+Start a new Pi session after installing. You don't need a config file to get started—all five notification types and their sounds are enabled by default.
 
-卸載：
+You'll need:
+
+- Windows 10 or 11.
+- 64-bit Node.js 22.19 or newer (x64 or arm64).
+- Pi 1.1.0 or newer.
+- Windows PowerShell 5.1, included with Windows.
+
+The extension only sends notifications in Pi's interactive terminal UI. It stays inactive in RPC, print, and JSON modes, on other operating systems, and with 32-bit Node.js. It doesn't support older Pi versions without the required UI events.
+
+To uninstall:
 
 ```bash
 pi remove npm:pi-windows-notifier
 ```
 
-## 提醒事件
+## When it notifies you
 
-| 事件 | Toast 內容 | 提示音 |
+| Event | When you get a notification | Windows sound |
 |---|---|---|
-| 權限詢問 | Pi：需要權限確認 | Exclamation |
-| 結構化提問 | Pi：有問題等待回答 | Exclamation |
-| 回應完成 | Pi：回應已完成 | Asterisk |
-| 回應中止 | Pi：回應已中止 | Exclamation |
-| 回應失敗 | Pi：回應失敗 | Exclamation |
+| `permission` | Pi needs you to review a permission request | Exclamation |
+| `question` | A supported question tool is waiting for your answer | Exclamation |
+| `completed` | Pi has finished responding | Asterisk |
+| `aborted` | The response was interrupted | Exclamation |
+| `failed` | The response ended in an error | Exclamation |
 
-- **權限**：監聽 `@gotgenes/pi-permission-system` 的 `permissions:ui_prompt`；自動 allow／deny、session approval 不提醒，支援轉送到父 session 的 subagent 詢問。
-- **提問**：支援 `ask_user_question`（包含 RPIV Lean）與 `plan_mode_question`。同一 questionnaire 只提醒一次。
-- **回應結束**：僅在 `agent_settled` 提醒。重試／續跑期間不提早通知；重試成功只報完成。單一工具失敗不代表整次模型回應失敗。
-- 不辨識普通文字中的問句，也不提醒單純手動設定 UI。不論終端是否在前景都提醒。
-- 權限與提問套件是可選整合來源，不是本 package 的 dependencies；沒有安裝它們時，回應結束通知仍可使用。
+The toast title is **Pi**. Notification text and the extension's command messages are currently in Traditional Chinese; there isn't a language setting yet.
 
-### 提問辨識邊界
+Permission notifications work with `@gotgenes/pi-permission-system`, including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
 
-Pi 的 UI 事件不含 toolCallId。只有恰好一個支援的提問工具正在執行，且沒有權限或已知不明 UI 佔用時，才會歸類為提問。歸屬不明時保守略過，並記錄 `UI_AMBIGUOUS`；不攔截第三方 UI。Pi 沒有提供足夠來源資訊以辨識所有並行 UI，因此不保證任意並行情況都能精確分類。
+Question notifications work with `ask_user_question` (including RPIV Lean) and `plan_mode_question`. One questionnaire gets one notification, not one per question. Ordinary questions written in a model's reply and manually opened settings dialogs don't count.
 
-RPIV 的 `rpiv:ask-user:blocked` 是補充訊號，與共通 UI 事件共用去重。提問套件可能自行發出 terminal bell；若聽到額外聲響，請檢查該套件或終端的設定。
+Response notifications wait until Pi has actually settled. They don't fire halfway through an automatic retry or continuation, and a failed tool call on its own doesn't count as a failed response.
 
-## 設定
+Permission and question packages are optional. You don't have to install them to get response notifications.
 
-設定檔位置：`~/.pi/agent/pi-windows-notifier/config.json`。不讀取專案設定，也不會自動建立或修改設定檔。檔案不存在時，所有通知與音效預設開啟：
+### A note about question detection
+
+Pi's UI events don't say which tool opened a dialog. This extension only classifies a UI wait as a question when exactly one supported question tool is running and no permission prompt or known unrelated UI is occupying the wait. If the signals are ambiguous, it skips the notification and records `UI_AMBIGUOUS` rather than guessing.
+
+This can't reliably identify every possible combination of overlapping dialogs. RPIV's `rpiv:ask-user:blocked` event provides an additional signal and shares the same deduplication logic.
+
+Some question packages also ring the terminal bell themselves. If you hear an extra sound, check that package's settings or your terminal's bell settings.
+
+## Settings
+
+To change the defaults, create `~/.pi/agent/pi-windows-notifier/config.json`. On Windows, that's `.pi\agent\pi-windows-notifier\config.json` inside your user home folder.
+
+The extension doesn't create or edit this file for you, and it doesn't read project-level settings. If the file doesn't exist, it uses these defaults:
 
 ```json
 {
@@ -60,60 +78,68 @@ RPIV 的 `rpiv:ask-user:blocked` 是補充訊號，與共通 UI 事件共用去�
 }
 ```
 
-只需提供想覆寫的欄位，例如讓完成通知靜音：
+You only need to include the values you want to change. For example, to keep completion toasts but turn off their sound:
 
 ```json
 { "events": { "completed": { "sound": false } } }
 ```
 
-`enabled` 是總開關；各事件的 `enabled` 控制該類通知，`sound` 控制是否播放提示音。設定會進行 runtime 型別驗證、拒絕未知欄位，大小上限為 16 KiB。讀取或驗證失敗時會停用通知並顯示固定診斷碼，不輸出設定內容。
+The top-level `enabled` switch controls everything. Each event's `enabled` switch controls both its toast and sound; `sound` only controls its sound.
 
-修改設定後執行 `/windows-notifier reload` 重新載入。
+After editing the file, run `/windows-notifier reload`. Unknown fields, invalid values, unreadable files, and files larger than 16 KiB disable notifications until you fix the settings and reload. Error messages won't print the file's contents.
 
-## 指令
+## Commands
+
+Run these inside Pi:
 
 ```text
 /windows-notifier status
 /windows-notifier reload
-/windows-notifier test [permission|question|completed|aborted|failed]
+/windows-notifier test
+/windows-notifier test permission
 ```
 
-`test` 不指定事件時使用 `completed`。**測試指令會顯示真實彈窗並播放音效**，且遵守設定開關、佇列及限流。`status` 顯示有效設定、backend 狀態、佇列與固定診斷碼，不含工作內容。
+- `status` shows the active settings, backend status, queue counters, and diagnostic codes—not your session content.
+- `reload` reads the config again and cancels old notification work.
+- `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
 
-## 安全與資源限制
+**Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.
 
-- 通知不含問題原文、命令、路徑、session 名稱、模型回答或錯誤原文；沒有 recap、遙測、外部通知服務或模型可呼叫的通知工具。
-- PowerShell 使用啟動環境的 SystemRoot／windir 所解析出的絕對路徑，不從工作目錄或 PATH 搜尋執行檔；拒絕相對、UNC 與 device 路徑。
-- 透過 `spawn`、`shell: false` 執行固定 helper。stdin 只有事件類型與音效開關，helper 再次驗證後才使用固定通知文字；不把動態資料拼接成 PowerShell 指令或 XML。
-- child 環境採必要 Windows 欄位白名單，不傳遞整份 agent environment 或 API tokens。`-ExecutionPolicy Bypass` 僅套用於該 child，不會取得管理員權限，也不被視為安全邊界。
-- 同時最多一個 helper、佇列上限 16、啟動間隔至少一秒、工作等待上限 30 秒；child timeout 為 10 秒，stdout／stderr 各限制 8 KiB。只終止本 extension 持有的 child，不依程序名稱關閉其他程序，也不無限重試。
-- 決策、提問結束、新 run、reload、session 重建及 shutdown 會取消對應的待發通知。已顯示的 Toast 不撤回；helper 啟動與 Windows 提交之間仍存在取消競態。
-- 不支援背景音樂、自訂音效檔、音量控制、遠端通知、定期催答或 Toast 點擊後的自動操作。
+## Privacy and process safety
 
-**威脅模型**：防護不可信專案內容與事件資料；假設 Windows 系統目錄、啟動 Pi 的 OS 環境與已安裝 package 可信。不防禦惡意同程序 extension、被竄改的 SystemRoot 或遭入侵的使用者帳號。Pi permission system 不是 extension 的 OS 沙盒。
+This extension uses Windows' built-in notification and sound APIs through a fixed PowerShell script. You don't need a separate notification server or audio player. There are no network notifications, telemetry, or custom sound files.
 
-## Windows 限制與排錯
+- PowerShell is located using an absolute path under the startup environment's `SystemRoot` or `windir`, never the project directory or `PATH`.
+- The helper runs without a shell. It receives only an event type and a sound switch, validates both, and builds the toast from fixed strings. It doesn't interpolate your content into PowerShell commands or XML.
+- The child process gets a limited set of Windows environment variables, not Pi's full environment or API tokens. `-ExecutionPolicy Bypass` applies only to that child; it doesn't grant administrator access or change permanent settings. Execution Policy isn't treated as a security boundary.
+- Only one helper runs at a time. The queue holds at most 16 notifications, launches are at least a second apart, queued work expires after 30 seconds, and the helper has a 10-second timeout. stdout and stderr are each capped at 8 KiB. Permission requests and questions take priority over response notifications.
+- It only attempts to stop its own child process, never every process with the same name. If Windows refuses to stop that process, new helpers wait for it to close instead of piling up.
+- Decisions, finished questions, new runs, reloads, session changes, and shutdown cancel the relevant old work. A toast already shown can't be taken back, and cancellation can race with submission to Windows.
 
-Toast 使用固定 `Microsoft.Windows.PowerShell` AppID，因此通知來源可能顯示 PowerShell，通知內容會標示 Pi。Toast 本身設為靜音，系統提示音另外播放；不使用 NotifyIcon balloon、Console.Beep 或外部播放器 fallback。
+These safeguards assume that Windows' system directories, Pi's startup environment, and installed packages are trustworthy. They don't protect against a malicious extension running in the same process or a compromised user account. Pi's permission system doesn't sandbox extensions at the OS level.
 
-Windows 勿擾、通知設定與系統音效方案有最終控制權。「已提交」不保證使用者一定看到彈窗或聽到聲音。Toast 與音效分別處理；一者失敗時仍會嘗試另一者，並以固定診斷碼回報。
+## If a notification doesn't appear
 
-常見診斷碼：
+Windows still has the final say. Do Not Disturb, notification settings, your sound scheme, and muted audio can suppress a toast or sound even after the API accepts it.
 
-| 診斷碼 | 意義 |
+The sender may appear as **PowerShell** because the extension uses the `Microsoft.Windows.PowerShell` AppID. The toast itself says **Pi**. Toast audio is disabled and the system sound is played separately to avoid a duplicate sound from this backend. If one fails, the other is still attempted. There is no fallback notification or audio player.
+
+Use `/windows-notifier status` to check these codes:
+
+| Code | What to check |
 |---|---|
-| `CONFIG_INVALID`／`CONFIG_TOO_LARGE`／`CONFIG_READ_FAILED` | 修正全域設定後 reload |
-| `ENV_UNSUPPORTED` | 目前不是支援的 Windows 64 位元 TUI 環境 |
-| `BACKEND_UNAVAILABLE` | SystemRoot、PowerShell 或 helper 不可用 |
-| `UI_AMBIGUOUS`／`TOOLS_LIMIT` | UI 歸屬不明或追蹤上限，保守略過 |
-| `QUEUE_DROPPED` | 佇列滿載，通知被丟棄 |
-| `HELPER_TIMEOUT`／`OUTPUT_LIMIT`／`LAUNCH_FAILED` | helper 超時、輸出超限或啟動失敗 |
-| `TOAST_FAILED`／`SOUND_FAILED`／`BOTH_FAILED` | Windows Toast／音效提交失敗 |
-| `INPUT_INVALID`／`INTERNAL_ERROR`／`HELPER_PROTOCOL` | helper 輸入或結果協定不符 |
+| `CONFIG_INVALID` / `CONFIG_TOO_LARGE` / `CONFIG_READ_FAILED` | Fix the global config file, then reload |
+| `ENV_UNSUPPORTED` | Use a supported Windows 64-bit interactive Pi session |
+| `BACKEND_UNAVAILABLE` | Check that the Windows paths, PowerShell, and helper are available |
+| `UI_AMBIGUOUS` / `TOOLS_LIMIT` | A UI wait couldn't be identified safely, or tracking hit its limit |
+| `QUEUE_DROPPED` | The queue was full and a notification was dropped |
+| `HELPER_TIMEOUT` / `OUTPUT_LIMIT` / `LAUNCH_FAILED` | The helper timed out, produced too much output, or couldn't run |
+| `TOAST_FAILED` / `SOUND_FAILED` / `BOTH_FAILED` | Windows rejected the toast, sound, or both |
+| `INPUT_INVALID` / `INTERNAL_ERROR` / `HELPER_PROTOCOL` | Check the package installation and helper protocol |
 
-自動通知錯誤最多每分鐘顯示一次固定 TUI 警告；詳細固定診斷碼可用 `status` 查看，不會顯示 PowerShell 原始錯誤輸出。
+Automatic errors show at most one terminal warning per minute. Status uses fixed diagnostic codes rather than raw PowerShell error output.
 
-## 開發與驗證
+## Development
 
 ```bash
 npm ci --ignore-scripts
@@ -121,8 +147,8 @@ npm run verify
 npm pack --dry-run
 ```
 
-測試使用 Node test runner、假時鐘、假 event bus 與 mock launcher。Windows 測試另檢查 PowerShell 語法與無效輸入路徑；一般 `npm test` 不會顯示 Toast 或播放音效。細節與已知限制見[驗證紀錄](docs/verification.md)。
+Tests use a fake clock, event bus, and launcher. On Windows, they also check PowerShell syntax and invalid input handling. Normal `npm test` runs don't show toasts or play sounds. See the [verification notes (繁體中文)](docs/verification.md) for the test scope and remaining checks.
 
-## 授權與來源
+## License
 
-MIT。上游來源及授權資訊見 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+MIT. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for upstream credits and license notices.
