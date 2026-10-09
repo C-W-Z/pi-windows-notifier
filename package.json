@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/C-W-Z/pi-windows-notifier.git"
   },
-  "homepage": "https://github.com/C-W-Z/pi-windows-notifier#readme",
+  "homepage": "https://pi.dev/packages/pi-windows-notifier",
   "bugs": {
     "url": "https://github.com/C-W-Z/pi-windows-notifier/issues"
   },
