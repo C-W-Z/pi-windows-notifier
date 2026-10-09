@@ -58,7 +58,8 @@ test("固定路徑、args、cwd、環境允許清單與最小 stdin", async () =
 });
 test("helper 固定協定、部分成功與錯誤原文不洩漏", async () => {
   for (const value of [{ code: "evil SECRET", toast: false, sound: "failed" }, { code: "OK", toast: false, sound: "played" },
-    { code: "OK", toast: true, sound: "played", secret: "SECRET" }, { code: "OK", toast: true, sound: "disabled" }]) {
+    { code: "OK", toast: true, sound: "played", secret: "SECRET" }, { code: "OK", toast: true, sound: "disabled" },
+    { code: "OK", toast: true, sound: ["played"] }, { code: ["OK"], toast: true, sound: "played" }]) {
     const { backend, close } = fixture();
     const promise = backend.launch("question", true, new AbortController().signal);
     close(value);
@@ -91,6 +92,14 @@ test("timeout、abort 與 spawn 失敗都是固定結果碼", async () => {
   const broken = createWindowsBackend({ platform: "win32", arch: "x64", env: { SystemRoot: "C:\\Windows" },
     isFile: () => true, spawnProcess() { throw new Error("SECRET"); } });
   assert.equal((await broken.launch("completed", true, new AbortController().signal)).code, "LAUNCH_FAILED");
+});
+test("pipe 錯誤只結束自有 helper，不把原始錯誤拋到宿主", async () => {
+  for (const stream of ["stdin", "stdout", "stderr"] as const) {
+    const { backend, children } = fixture();
+    const promise = backend.launch("completed", false, new AbortController().signal);
+    children[0][stream]!.emit("error", new Error("SECRET"));
+    assert.equal((await promise).code, "LAUNCH_FAILED");
+  }
 });
 test("非 Windows、32 位元及遺失檔案不啟動程序", async () => {
   for (const options of [{ platform: "linux" as const }, { platform: "win32" as const, arch: "ia32" },

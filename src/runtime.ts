@@ -56,10 +56,11 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
     if (target.disposed) return;
     if (target.diagnostics.size < 32) target.diagnostics.add(code);
     const now = clock.now();
-    if (target.context.mode !== "tui" || !target.context.hasUI || now - target.lastWarning < 60_000) return;
-    target.lastWarning = now;
-    try { target.context.ui.notify(`Windows notifier：${code}。可用 /windows-notifier status 查看狀態。`, "warning"); }
-    catch { /* session 更換時的 stale UI 不影響 agent。 */ }
+    try {
+      if (target.context.mode !== "tui" || !target.context.hasUI || now - target.lastWarning < 60_000) return;
+      target.lastWarning = now;
+      target.context.ui.notify(`Windows notifier：${code}。可用 /windows-notifier status 查看狀態。`, "warning");
+    } catch { /* session 更換時的 stale context／UI 不影響 agent。 */ }
   };
   const stop = async () => {
     const previous = session;

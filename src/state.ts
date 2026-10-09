@@ -69,7 +69,13 @@ export class NotificationState {
     this.sink.cancel("question:" + id);
   }
   uiStart(): void {
-    if (this.ui) { this.diagnose("UI_AMBIGUOUS"); return; }
+    if (this.ui) {
+      if (this.ui.question) this.stopWait(this.ui.question);
+      if (this.rpivCall) this.stopWait(this.rpivCall);
+      this.ui = {};
+      this.diagnose("UI_AMBIGUOUS");
+      return;
+    }
     this.ui = {};
     if (this.permissions.size) return;
     if (this.questions.size !== 1) {

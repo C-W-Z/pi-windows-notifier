@@ -116,7 +116,7 @@ export function createWindowsBackend(options: BackendOptions = {}): Backend {
         };
         child.on("error", () => {
           reason ??= "LAUNCH_FAILED";
-          // spawn 失敗會有 close；等待它以免提前释放單一 helper 的配額。
+          // spawn 失敗會有 close；等待它以免提前釋放單一 helper 的配額。
         });
         child.stdout?.on("data", (chunk: Buffer | string) => {
           if (reason) return;
@@ -132,6 +132,8 @@ export function createWindowsBackend(options: BackendOptions = {}): Backend {
         });
         child.once("close", exitCode => finish(reason ? failed(reason) : parseResult(output, exitCode, sound)));
         child.stdin?.on("error", () => stop("LAUNCH_FAILED"));
+        child.stdout?.on("error", () => stop("LAUNCH_FAILED"));
+        child.stderr?.on("error", () => stop("LAUNCH_FAILED"));
         try { child.stdin?.end(JSON.stringify({ kind, sound })); }
         catch { stop("LAUNCH_FAILED"); }
         if (signal.aborted) onAbort();

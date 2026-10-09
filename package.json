@@ -17,6 +17,7 @@
     "src/**/*.ts",
     "src/windows-notify.ps1",
     "README.md",
+    "docs/verification.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"
   ],

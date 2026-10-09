@@ -115,6 +115,15 @@ test("Esc 優先於成功、空 run 不報成功、工具錯誤不等於模型�
   state.settled({ aborted: false });
   assert.equal(jobs[1].kind, "completed");
 });
+test("重複或並行 UI 開始訊號取消尚未送出的提問，不猜測歸屬", () => {
+  const { state, jobs, cancelled } = fixture();
+  state.toolStart({ toolCallId: "q", toolName: "plan_mode_question" });
+  state.uiStart();
+  assert.equal(jobs[0].valid(), true);
+  state.uiStart();
+  assert.equal(jobs[0].valid(), false);
+  assert.ok(cancelled.includes("question:q"));
+});
 test("reset 使舊事件失效且可重複呼叫", () => {
   const { state, jobs } = fixture();
   state.permissionPrompt({ requestId: "old" });
