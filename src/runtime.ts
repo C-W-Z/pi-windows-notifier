@@ -39,29 +39,29 @@ const SUBMISSION_MESSAGES: Record<Submission["status"], string> = {
 function formatStatus(target: Session | undefined, detail: boolean): string {
   const config = target?.result.config;
   const queue = target?.scheduler?.status();
-  const onOff = (enabled: boolean) => enabled ? "開啟" : "關閉";
+  const onOff = (enabled: boolean) => enabled ? "On" : "Off";
   const diagnostics = [...(target?.diagnostics ?? [])];
   const lines = [
-    "Windows notifier 狀態",
-    `總開關：${onOff(config?.enabled ?? false)}`,
-    `Backend：${target?.backendCode ?? "NOT_STARTED"}`,
-    `事件設定：${config ? `${KINDS.filter(kind => config.events[kind].enabled).length} / ${KINDS.length} 開啟` : "尚未載入"}`,
-    `佇列：${queue ? `等待 ${queue.queued} · 丟棄 ${queue.dropped}` : "不可用"}`,
-    `Helper：${queue ? queue.active ? "執行中" : "閒置" : "不可用"}`,
-    `診斷：${diagnostics.length ? diagnostics.join("、") : "無"}`,
+    "Windows notifier status",
+    `Global: ${onOff(config?.enabled ?? false)}`,
+    `Backend: ${target?.backendCode ?? "NOT_STARTED"}`,
+    `Configured events: ${config ? `${KINDS.filter(kind => config.events[kind].enabled).length} / ${KINDS.length} enabled` : "Not loaded"}`,
+    `Queue: ${queue ? `Queued ${queue.queued} · Dropped ${queue.dropped}` : "Unavailable"}`,
+    `Helper: ${queue ? queue.active ? "Running" : "Idle" : "Unavailable"}`,
+    `Diagnostics: ${diagnostics.length ? diagnostics.join(", ") : "None"}`,
   ];
   if (detail) {
-    lines.push("", `設定版本：${config?.schemaVersion ?? "尚未載入"}`,
-      "事件明細（設定值；實際通知仍受總開關與 backend 限制）：");
+    lines.push("", `Schema version: ${config?.schemaVersion ?? "Not loaded"}`,
+      "Event details (configured values; global switch and backend still apply):");
     if (config) {
       for (const kind of KINDS) {
         const event = config.events[kind];
-        const source = event.sound.source.type === "system" ? event.sound.source.name : "WAV 檔案";
-        lines.push(`  ${kind.padEnd(10)}  事件：${onOff(event.enabled)}  彈窗：${onOff(event.toast.enabled)}`,
-          `              音效：${onOff(event.sound.enabled)}（${source}）`);
+        const source = event.sound.source.type === "system" ? event.sound.source.name : "WAV file";
+        lines.push(`  ${kind.padEnd(10)}  Event: ${onOff(event.enabled)}  Toast: ${onOff(event.toast.enabled)}`,
+          `              Sound: ${onOff(event.sound.enabled)} (${source})`);
       }
-    } else lines.push("  尚未載入");
-  } else lines.push("", "查看明細：/windows-notifier status detail");
+    } else lines.push("  Not loaded");
+  } else lines.push("", "Details: /windows-notifier status detail");
   return lines.join("\n");
 }
 

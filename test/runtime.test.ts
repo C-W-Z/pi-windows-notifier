@@ -113,20 +113,21 @@ test("status 與空參數顯示簡潔摘要；detail 與 all 顯示相同的安�
   await h.command("status");
   const summary = h.messages.at(-1)!;
   assert.equal(summary, [
-    "Windows notifier 狀態", "總開關：開啟", "Backend：OK", "事件設定：5 / 5 開啟",
-    "佇列：等待 0 · 丟棄 0", "Helper：閒置", "診斷：無", "",
-    "查看明細：/windows-notifier status detail",
+    "Windows notifier status", "Global: On", "Backend: OK", "Configured events: 5 / 5 enabled",
+    "Queue: Queued 0 · Dropped 0", "Helper: Idle", "Diagnostics: None", "",
+    "Details: /windows-notifier status detail",
   ].join("\n"));
   await h.command("  ");
   assert.equal(h.messages.at(-1), summary);
   await h.command(" status   detail ");
   const detail = h.messages.at(-1)!;
-  assert.match(detail, /設定版本：2/u);
+  assert.equal(/[\u3400-\u9fff]/u.test(summary + detail), false);
+  assert.match(detail, /Schema version: 2/u);
   for (const kind of ["permission", "question", "completed", "aborted", "failed"])
-    assert.match(detail, new RegExp(`${kind}\\s+事件：開啟  彈窗：開啟`, "u"));
-  assert.match(detail, /音效：開啟（Hand）/u);
-  assert.match(detail, /音效：開啟（Exclamation）/u);
-  assert.equal(detail.includes("查看明細"), false);
+    assert.match(detail, new RegExp(`${kind}\\s+Event: On  Toast: On`, "u"));
+  assert.match(detail, /Sound: On \(Hand\)/u);
+  assert.match(detail, /Sound: On \(Exclamation\)/u);
+  assert.equal(detail.includes("Details"), false);
   await h.command("status all");
   assert.equal(h.messages.at(-1), detail);
   assert.equal(h.calls.length, 0);
@@ -140,33 +141,33 @@ test("status 明細區分總開關、事件與通道設定，不暗示停用事�
   await h.hook("session_start");
   await h.command("status detail");
   const detail = h.messages.at(-1)!;
-  assert.match(detail, /總開關：關閉/u);
-  assert.match(detail, /事件設定：4 \/ 5 開啟/u);
-  assert.match(detail, /設定值；實際通知仍受總開關與 backend 限制/u);
-  assert.match(detail, /permission\s+事件：關閉  彈窗：關閉\n\s+音效：關閉（Exclamation）/u);
-  assert.match(detail, /question\s+事件：開啟  彈窗：開啟\n\s+音效：關閉（Exclamation）/u);
+  assert.match(detail, /Global: Off/u);
+  assert.match(detail, /Configured events: 4 \/ 5 enabled/u);
+  assert.match(detail, /configured values; global switch and backend still apply/u);
+  assert.match(detail, /permission\s+Event: Off  Toast: Off\n\s+Sound: Off \(Exclamation\)/u);
+  assert.match(detail, /question\s+Event: On  Toast: On\n\s+Sound: Off \(Exclamation\)/u);
   await h.hook("session_shutdown");
 });
 test("未啟動、不支援環境與無效設定的 status 仍可讀且保留診斷碼", async () => {
   const h = harness();
   await h.command("status");
-  assert.match(h.messages.at(-1)!, /Backend：NOT_STARTED/u);
-  assert.match(h.messages.at(-1)!, /事件設定：尚未載入/u);
-  assert.match(h.messages.at(-1)!, /佇列：不可用\nHelper：不可用/u);
+  assert.match(h.messages.at(-1)!, /Backend: NOT_STARTED/u);
+  assert.match(h.messages.at(-1)!, /Configured events: Not loaded/u);
+  assert.match(h.messages.at(-1)!, /Queue: Unavailable\nHelper: Unavailable/u);
   await h.command("status detail");
-  assert.match(h.messages.at(-1)!, /設定版本：尚未載入/u);
+  assert.match(h.messages.at(-1)!, /Schema version: Not loaded/u);
   assert.equal(h.makeCount(), 0);
   const unsupported = harness({ platform: "linux" });
   await unsupported.hook("session_start");
   await unsupported.command("status all");
-  assert.match(unsupported.messages.at(-1)!, /Backend：ENV_UNSUPPORTED/u);
-  assert.match(unsupported.messages.at(-1)!, /佇列：不可用/u);
+  assert.match(unsupported.messages.at(-1)!, /Backend: ENV_UNSUPPORTED/u);
+  assert.match(unsupported.messages.at(-1)!, /Queue: Unavailable/u);
   await unsupported.hook("session_shutdown");
   const invalid = harness({ result: { ok: false, code: "CONFIG_INVALID", config: { ...defaults(), enabled: false } } });
   await invalid.hook("session_start");
   await invalid.command("status");
-  assert.match(invalid.messages.at(-1)!, /總開關：關閉/u);
-  assert.match(invalid.messages.at(-1)!, /診斷：CONFIG_INVALID/u);
+  assert.match(invalid.messages.at(-1)!, /Global: Off/u);
+  assert.match(invalid.messages.at(-1)!, /Diagnostics: CONFIG_INVALID/u);
   await invalid.hook("session_shutdown");
 });
 test("status 顯示執行中 helper、等待與丟棄計數，讀取本身不提交通知", async () => {
@@ -176,14 +177,14 @@ test("status 顯示執行中 helper、等待與丟棄計數，讀取本身不提
   await h.tick();
   for (let i = 0; i < 18; i++) h.bus("permissions:ui_prompt", { requestId: `pending-${i}` });
   await h.command("status");
-  assert.match(h.messages.at(-1)!, /佇列：等待 16 · 丟棄 2/u);
-  assert.match(h.messages.at(-1)!, /Helper：執行中/u);
-  assert.match(h.messages.at(-1)!, /診斷：QUEUE_DROPPED/u);
+  assert.match(h.messages.at(-1)!, /Queue: Queued 16 · Dropped 2/u);
+  assert.match(h.messages.at(-1)!, /Helper: Running/u);
+  assert.match(h.messages.at(-1)!, /Diagnostics: QUEUE_DROPPED/u);
   assert.equal(h.calls.length, 1);
   h.calls[0].resolve({ code: "SOUND_FAILED", toast: true, sound: "failed" });
   await flush();
   await h.command("status");
-  assert.match(h.messages.at(-1)!, /診斷：QUEUE_DROPPED、SOUND_FAILED/u);
+  assert.match(h.messages.at(-1)!, /Diagnostics: QUEUE_DROPPED, SOUND_FAILED/u);
   await h.hook("session_shutdown");
 });
 test("未知或過多的 status 參數顯示用法，不回顯輸入或提交通知", async () => {
@@ -301,9 +302,9 @@ test("自訂文字可送達 backend，但 status、警告及 test 結果不展�
   await h.command("status");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
   await h.command("status detail");
-  assert.match(h.messages.at(-1)!, /permission\s+事件：開啟  彈窗：關閉/u);
-  assert.match(h.messages.at(-1)!, /音效：開啟（Question）/u);
-  assert.match(h.messages.at(-1)!, /設定版本：2/u);
+  assert.match(h.messages.at(-1)!, /permission\s+Event: On  Toast: Off/u);
+  assert.match(h.messages.at(-1)!, /Sound: On \(Question\)/u);
+  assert.match(h.messages.at(-1)!, /Schema version: 2/u);
   await h.command("status all");
   assert.equal(h.messages.join().includes("PRIVATE_"), false);
   h.setResult(parseConfig({ schemaVersion: 2, defaults: { toast: { title: "PRIVATE_TITLE", message: 42 } } }));
@@ -324,7 +325,7 @@ test("檔案音效可以測試與 reload，但 status 不洩漏私人路徑", as
   await h.command("status");
   for (const args of ["status detail", "status all"]) {
     await h.command(args);
-    assert.match(h.messages.at(-1)!, /音效：開啟（WAV 檔案）/u);
+    assert.match(h.messages.at(-1)!, /Sound: On \(WAV file\)/u);
   }
   assert.equal(h.messages.join().includes("PRIVATE_USER"), false);
   h.setResult(makeConfig("D:/PRIVATE_USER/new.wav"));

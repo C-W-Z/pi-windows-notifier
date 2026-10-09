@@ -51,7 +51,7 @@ pi remove npm:pi-windows-notifier
 | `aborted` | The response was interrupted | Exclamation |
 | `failed` | The response ended in an error | Exclamation |
 
-The default toast title is **Pi**, and default messages are in English. You can change the title and message for each event in your config. Command messages are still in Traditional Chinese; there isn't a language switch.
+The default toast title is **Pi**, and default messages are in English. You can change the title and message for each event in your config. Status output is in English; other command messages are in Traditional Chinese. There isn't a language switch.
 
 Permission notifications work with [`@gotgenes/pi-permission-system`](https://pi.dev/packages/@gotgenes/pi-permission-system), including requests forwarded from a subagent to its parent session. Requests that are automatically allowed or denied, or covered by an existing session approval, don't trigger a notification.
 
@@ -208,29 +208,29 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`,
 
 - `status` shows a readable, multi-line summary: the global switch, backend, enabled-event count, queue counters, helper state, and diagnostic codes. Omitting the subcommand shows the same summary.
 - `status detail` adds the schema version and each event's switch, toast switch, and sound switch/source. `status all` is an alias. These are configured values; actual notifications still depend on the global, event, and channel switches and the backend.
-- Neither view displays custom text, file paths, or session content. File sounds are labeled `WAV 檔案` without their paths.
+- Neither view displays custom text, file paths, or session content. File sounds are labeled `WAV file` without their paths.
 - `reload` reads the config again and cancels old notification work.
 - `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
 
-Example `status` summary (command output remains in Traditional Chinese):
+Example `status` summary (status output is in English):
 
 ```text
-Windows notifier 狀態
-總開關：開啟
-Backend：OK
-事件設定：5 / 5 開啟
-佇列：等待 0 · 丟棄 0
-Helper：閒置
-診斷：無
+Windows notifier status
+Global: On
+Backend: OK
+Configured events: 5 / 5 enabled
+Queue: Queued 0 · Dropped 0
+Helper: Idle
+Diagnostics: None
 
-查看明細：/windows-notifier status detail
+Details: /windows-notifier status detail
 ```
 
 `status detail` also adds rows for each event, for example:
 
 ```text
-  completed   事件：開啟  彈窗：開啟
-              音效：開啟（Hand）
+  completed   Event: On  Toast: On
+              Sound: On (Hand)
 ```
 
 **Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.

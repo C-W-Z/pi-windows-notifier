@@ -51,7 +51,7 @@ pi remove npm:pi-windows-notifier
 | `aborted` | Response interrupted | Exclamation |
 | `failed` | Response failed | Exclamation |
 
-彈窗標題預設是 **Pi**，預設訊息是英文。每個事件都能設定自己的標題與訊息；指令提示仍是繁體中文，沒有整體語言切換設定。
+彈窗標題預設是 **Pi**，預設訊息是英文。每個事件都能設定自己的標題與訊息；狀態輸出是英文，其他指令提示仍是繁體中文，沒有整體語言切換設定。
 
 **權限提醒**搭配 `@gotgenes/pi-permission-system` 使用，也支援從 subagent 轉送到父 session 的權限請求。自動允許、自動拒絕，或已經有 session approval 的請求不會提醒。
 
@@ -208,29 +208,29 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 
 - `status`：以分行摘要查看總開關、backend、事件開啟數、佇列計數、helper 狀態和診斷碼。不帶參數也會顯示相同摘要。
 - `status detail`：在摘要下方列出設定版本、五種事件的開關、彈窗開關與音效開關／來源；`status all` 與它相同。事件明細是設定值，實際通知仍受總開關、事件開關、通道開關及 backend 限制。
-- 摘要與明細都不會顯示自訂文字、檔案路徑或 session 內容；檔案音效只標示為 `WAV 檔案`。
+- 摘要與明細都不會顯示自訂文字、檔案路徑或 session 內容；檔案音效只標示為 `WAV file`。
 - `reload`：重新讀取設定，取消舊的通知工作。
 - `test`：預設測試完成通知，也能指定 `permission`、`question`、`completed`、`aborted` 或 `failed`。
 
 `status` 摘要範例：
 
 ```text
-Windows notifier 狀態
-總開關：開啟
-Backend：OK
-事件設定：5 / 5 開啟
-佇列：等待 0 · 丟棄 0
-Helper：閒置
-診斷：無
+Windows notifier status
+Global: On
+Backend: OK
+Configured events: 5 / 5 enabled
+Queue: Queued 0 · Dropped 0
+Helper: Idle
+Diagnostics: None
 
-查看明細：/windows-notifier status detail
+Details: /windows-notifier status detail
 ```
 
 `status detail` 會再加上每個事件的明細，例如：
 
 ```text
-  completed   事件：開啟  彈窗：開啟
-              音效：開啟（Hand）
+  completed   Event: On  Toast: On
+              Sound: On (Hand)
 ```
 
 **測試會真的跳通知、播放音效。** 和自動通知一樣，它會遵守開關、佇列與限流，不會強行送出已停用的事件。
