@@ -2,7 +2,7 @@
 
 最後核對：2026-10-10。程式碼基準：main 的 `753dbda`；這是本次文件建立前的基準，不代表最新 commit 永遠相同。
 
-本文件記錄當前能力與未完成驗收，不是逐次工作日誌。架構見 [程式碼架構](architecture.md)，完整驗證範圍見 [驗證紀錄](verification.md)。
+本文件統一記錄當前能力、驗證範圍與結果、已知限制及待完成驗收，不是逐次工作日誌。架構見 [程式碼架構](architecture.md)。
 
 ## 快速摘要
 
@@ -33,9 +33,17 @@
 2026-10-10 在 Windows、Node.js `v24.18.0`、npm `11.16.0` 執行：
 
 - npm run verify：TypeScript 檢查通過；**71 個測試通過，0 失敗、0 skipped**。
-- 其中包含實際 PowerShell 語法／無效輸入／安全 fixture 檢查、PCM WAV 讀取與驗證、祖先 junction 拒絕，以及 npm pack dry-run 清單核對。
-- completion 測試驗證連續 Tab 與既有 provider 行為；runtime／state／scheduler／launcher 多數使用 mock event bus、backend 或假時鐘。
-- 一般測試不顯示 Toast 或播放音效，不將其視為實機可見／可聽驗收。
+
+測試範圍與證據界線：
+
+- 設定：schema v2 合併、舊格式相容、獨立通道、系統音效白名單、本機 WAV 路徑、文字上限與 Unicode／XML 驗證；status 與錯誤提示不展示設定文字或路徑。
+- 事件與排程：權限／提問辨識、最終回應分類、去重取消、限流佇列、launcher 協定與資源清理。多數使用 mock event bus、backend 或假時鐘，不等同真實 Pi 工作流程。
+- 補全：連續 Tab、參數前綴與既有 provider 行為。
+- Windows helper：實際檢查兩個 PowerShell 腳本的語法、無效輸入、通道全關閉時的有效輸入，以及缺失 WAV 的固定失敗結果；不顯示 Toast 或播放音效。單通道成功／失敗與部分成功由 mock launcher 驗證。
+- WAV：自行合成 PCM fixtures，實際呼叫讀取與驗證函式；涵蓋 mono／stereo、8／16 bit、五秒邊界、奇數 chunk padding、Unicode／引號／指令樣式檔名、超大／截斷／偽造格式、重複 chunks、缺失檔案、目錄及祖先 junction。這些測試不執行播放函式。
+- 發布：npm pack dry-run 核對精確清單，僅包含 package metadata、runtime TS、PowerShell helpers、雙語 README 與授權文件。
+
+一般測試不顯示 Toast 或播放音效；自動測試與 helper 提交成功均不能證明使用者實際看見或聽見。
 
 重現檢查：
 
@@ -49,11 +57,11 @@ npm pack --dry-run --ignore-scripts
 
 ### 已記錄的實機結果
 
-依 [verification.md](verification.md)：
+以下沿用既有人工驗收紀錄，不是本次重新驗收：
 
-- 0.1.x backend 五類通知曾人工確認 Toast 與提示音。
-- 自訂 WAV 播放已有實際可聽驗收。
-- 舊版通過不代表目前 helper 的 Toast-only、sound-only 或所有 Pi 情境也已通過。
+- 0.1.x Windows backend 的五類通知曾逐一送出，人工確認有 Toast 彈窗與提示音。
+- 自訂 WAV 播放已有實際可聽驗收；原紀錄未註明驗收版本與環境，不補推。
+- 自 0.2.0 記錄為待驗收的 Toast-only、sound-only，目前仍未記錄實際可見／可聽結果。舊版通過不代表目前 helper 或所有 Pi 情境已通過。
 
 本次文件整理未觸發實際通知、播放音效或執行新的端到端驗收。
 
@@ -70,7 +78,7 @@ npm pack --dry-run --ignore-scripts
 - [ ] 確認 Windows 勿擾、停用通知、靜音與音效方案下的行為。
 - [ ] 確認不同 extension 載入順序與 reload 後的實際程序生命週期。
 
-實機測試會產生通知與聲音，執行前須取得使用者確認；驗收後同步更新本文件及 verification.md，記錄版本、環境、情境與結果。
+實機測試會產生通知與聲音，執行前須取得使用者確認；驗收後更新本文件，記錄版本、環境、情境與結果。
 
 ## 已知限制與刻意不支援
 
@@ -83,15 +91,13 @@ npm pack --dry-run --ignore-scripts
 
 ## 後續任務定位與維護
 
-建議先讀本文件，再讀架構；涉及驗收時再讀 verification.md，按下列索引核對相關實作，不必每次通讀全部程式碼：
+建議先讀本文件，再讀架構，按下列索引核對相關實作，不必每次通讀全部程式碼：
 
 - 事件辨識／去重／結果分類：state 及 state tests，再看 runtime 接線。
 - 設定／預設音效／相容性：config、types 與 config tests；同步核對雙語 README 範例。
 - status／指令／補全：runtime、completion 與對應 tests。
 - 排程／取消／程序安全：scheduler、launcher 與對應 tests；涉及實際 API 時再看 PowerShell helpers。
 - WAV：windows-sound、types、helper／windows-sound tests。
-- 發布：package.json、pack test 與驗證紀錄；不要因新增維護文件而擴大 npm 發布清單。
+- 發布：package.json、pack test 與本文件的驗證狀態；不要因新增維護文件而擴大 npm 發布清單。
 
-功能、限制或驗證結果改變時更新本文件；模組責任、資料流或安全邊界改變時更新 architecture.md；驗收範圍與證據改變時更新 verification.md。文件與實作不一致時以程式碼與實際驗證為準，並修正文件。避免複製大段實作或記錄 secrets、私人設定與 session 內容。
-
-**自動閱讀入口尚未建立**：本次新增根目錄 AGENTS.md 被權限政策拒絕，因此目前只有 README 文件入口；跨 session 自動遵循閱讀順序仍需使用者自行加入 agent 指引。
+功能、限制、驗證範圍或結果改變時更新本文件；模組責任、資料流或安全邊界改變時更新 architecture.md。文件與實作不一致時以程式碼與實際驗證為準，並修正文件。避免複製大段實作或記錄 secrets、私人設定與 session 內容。

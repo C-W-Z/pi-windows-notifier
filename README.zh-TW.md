@@ -283,7 +283,7 @@ npm run verify
 npm pack --dry-run
 ```
 
-測試使用假時鐘、event bus 和 launcher。Windows 上也會檢查 PowerShell 語法、無效輸入、PCM WAV 驗證、有界檔案讀取與 junction 拒絕。一般 `npm test` 不會跳彈窗或播放音效；測試範圍與仍需確認的項目見[驗證紀錄](docs/verification.md)。
+測試使用假時鐘、event bus 和 launcher。Windows 上也會檢查 PowerShell 語法、無效輸入、PCM WAV 驗證、有界檔案讀取與 junction 拒絕。一般 `npm test` 不會跳彈窗或播放音效；測試範圍與仍需確認的項目統一見[目前狀態與驗證紀錄](https://github.com/C-W-Z/pi-windows-notifier/blob/main/docs/current-status.md#驗證狀態)。
 
 ## 授權
 

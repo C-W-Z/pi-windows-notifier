@@ -282,7 +282,7 @@ npm run verify
 npm pack --dry-run
 ```
 
-Tests use a fake clock, event bus, and launcher. On Windows, they also check PowerShell syntax, invalid input handling, PCM WAV validation, bounded file reads, and junction rejection. Normal `npm test` runs don't show toasts or play sounds. See the [verification notes (繁體中文)](docs/verification.md) for the test scope and remaining checks.
+Tests use a fake clock, event bus, and launcher. On Windows, they also check PowerShell syntax, invalid input handling, PCM WAV validation, bounded file reads, and junction rejection. Normal `npm test` runs don't show toasts or play sounds. See the [current status and verification notes (繁體中文)](https://github.com/C-W-Z/pi-windows-notifier/blob/main/docs/current-status.md#驗證狀態) for the test scope and remaining checks.
 
 ## License
 
