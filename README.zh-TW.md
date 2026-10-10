@@ -275,6 +275,8 @@ Windows 仍然有最終決定權。勿擾模式、通知設定、系統音效方
 
 ## 開發
 
+專案記憶（保存在 repository，不隨 npm 套件發布）：[目前狀態](https://github.com/C-W-Z/pi-windows-notifier/blob/main/docs/current-status.md) · [程式碼架構](https://github.com/C-W-Z/pi-windows-notifier/blob/main/docs/architecture.md)。開始維護時先讀狀態與架構，再核對本次任務相關的程式碼；功能、架構或驗證結果改變時同步更新對應文件。
+
 ```bash
 npm ci --ignore-scripts
 npm run verify
