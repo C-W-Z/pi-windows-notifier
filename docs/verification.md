@@ -20,9 +20,9 @@ npm pack --dry-run
 
 0.1.x Windows backend 的五類通知（permission、question、completed、aborted、failed）曾逐一送出，並經人工確認有 Toast 彈窗與提示音。
 
-0.2.0 的自訂標題／訊息、Toast-only、sound-only 與新增系統音效選擇尚未完成實際可見／可聽驗收；不以舊版結果推論新 helper 已通過。
+0.2.0 的Toast-only、sound-only 尚未完成實際可見／可聽驗收；不以舊版結果推論新 helper 已通過。
 
-新增的自訂 WAV 播放尚未完成實際可聽驗收。手動驗收時，請在全域 config 的 `events.completed.sound.source` 設定 `{ "type": "file", "path": "C:/Sounds/done.wav" }`，使用符合限制的可信任檔案，reload 後執行 `/windows-notifier test completed`。另需確認 sound-only、檔案缺失時 Toast 仍送出，以及播放中 reload／shutdown 的取消行為。這些指令會產生實際通知與聲音。
+新增的自訂 WAV 播放已實際可聽驗收。另需確認 sound-only、檔案缺失時 Toast 仍送出，以及播放中 reload／shutdown 的取消行為。這些指令會產生實際通知與聲音。
 
 這項 backend 驗證不等於所有 Pi 整合情境均已端到端驗收。以下項目仍需在實際使用環境確認：
 
