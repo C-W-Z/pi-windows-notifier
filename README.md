@@ -8,7 +8,7 @@
 
 Get a Windows notification when Pi needs your attention—or when it's finished responding. Shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed responses, even while you're looking at another window.
 
-**No need to use in WSL.**
+**No WSL required.**
 
 Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
 
