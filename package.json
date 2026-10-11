@@ -1,6 +1,6 @@
 {
   "name": "pi-windows-notifier",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Built for Windows. Zero dependencies. Customizable, security-first notifications and alert sounds for Pi.",
   "type": "module",
   "license": "MIT",
