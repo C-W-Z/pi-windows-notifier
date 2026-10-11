@@ -83,6 +83,7 @@ npm pack --dry-run --ignore-scripts
 
 以下為尚未實作或調查的功能待辦：
 
+- [ ] 可設定音量
 - [ ] 點擊 Toast 後，自動切換至對應終端機的對應 tab。
 
 ## 已知限制與刻意不支援
