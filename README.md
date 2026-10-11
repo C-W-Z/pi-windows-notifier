@@ -16,7 +16,7 @@ Uses Pi-provided APIs, Node.js built-ins, and the built-in Windows notification 
 
 ## Preview
 
-![](docs/preview.zh-TW.png)
+![](docs/preview.png)
 
 ## Install
 
