@@ -24,7 +24,7 @@
 pi install npm:pi-windows-notifier
 ```
 
-安裝後開一個新的 Pi session 就能使用，不用先寫設定檔。五種通知和提示音預設都會開啟。
+安裝後開一個新的 Pi session 或 `/reload` 就能使用，不用先寫設定檔。五種通知和提示音預設都會開啟。
 
 需要的環境：
 

@@ -8,7 +8,7 @@
 
 Get a Windows notification when Pi needs your attention—or when it's finished responding. Shows a toast and plays a system sound or your own WAV file for permission requests, structured questions, and completed responses, even while you're looking at another window.
 
-**No need to use in WSL。**
+**No need to use in WSL.**
 
 Notifications stay on your machine. They don't pull questions, commands, file paths, or Pi's replies from your session; you can set your own static notification text. The extension doesn't approve permissions or answer questions for you.
 
@@ -24,7 +24,7 @@ Uses Pi-provided APIs, Node.js built-ins, and the built-in Windows notification 
 pi install npm:pi-windows-notifier
 ```
 
-Start a new Pi session after installing. You don't need a config file to get started—all five notification types and their sounds are enabled by default.
+Start a new Pi session or `/reload` after installing. You don't need a config file to get started—all five notification types and their sounds are enabled by default.
 
 You'll need:
 
