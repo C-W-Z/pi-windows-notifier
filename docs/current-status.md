@@ -1,6 +1,6 @@
 # 目前狀態
 
-最後核對：2026-10-10。程式碼基準：main 的 `753dbda`；這是本次文件建立前的基準，不代表最新 commit 永遠相同。
+最後核對：2026-10-11。
 
 本文件統一記錄當前能力、驗證範圍與結果、已知限制及待完成驗收，不是逐次工作日誌。架構見 [程式碼架構](architecture.md)。
 
@@ -21,7 +21,7 @@
 | 設定 | schema v2、共用 defaults／事件覆寫、舊格式記憶體相容、新舊全域路徑優先順序、無效設定 fail closed |
 | 通道與內容 | Toast／sound 獨立開關、自訂靜態文字、系統音效白名單與本機 WAV；completed 預設 Hand |
 | 程序與取消 | 單一 helper、有界佇列、等待事件優先、限流、TTL、timeout、reload／shutdown 串行清理 |
-| 指令 | status 摘要、status all 明細、reload、test [event]、連續 Tab 與參數前綴補全 |
+| 指令 | status 摘要、status all 明細、reload、test [event]、連續 Tab 與參數前綴補全；test 立即英文請求提示與延後最終結果，reload／診斷／用法為英文 |
 | 隱私與安全 | 不帶出 session 內容；status／診斷不列自訂文字與路徑；固定 helper、stdin JSON、最小環境與嚴格協定 |
 | 發布範圍 | 精確 pack 白名單，不包含 docs、測試或開發設定 |
 
@@ -29,15 +29,15 @@
 
 ### 自動驗證
 
-2026-10-10 在 Windows、Node.js `v24.18.0`、npm `11.16.0` 執行：
+2026-10-11 在 Windows、Node.js `v24.18.0`、npm `11.16.0` 執行：
 
-- npm run verify：TypeScript 檢查通過；**71 個測試通過，0 失敗、0 skipped**。
+- npm run verify：TypeScript 檢查通過；**79 個測試通過，0 失敗、0 skipped**。
 
 測試範圍與證據界線：
 
 - 設定：schema v2 合併、舊格式相容、獨立通道、系統音效白名單、本機 WAV 路徑、文字上限與 Unicode／XML 驗證；status 與錯誤提示不展示設定文字或路徑。
 - 事件與排程：權限／提問辨識、最終回應分類、去重取消、限流佇列、launcher 協定與資源清理。多數使用 mock event bus、backend 或假時鐘，不等同真實 Pi 工作流程。
-- 補全：連續 Tab、參數前綴與既有 provider 行為。
+- 指令與補全：test 在 helper 啟動前及排隊／限流期間立即顯示英文請求提示，最終提交結果仍等待 helper；七種結果與診斷 warning、設定開關、reload／session 切換／shutdown 後舊結果抑制、英文 reload 提示；連續 Tab、參數前綴與既有 provider 行為。時序由 mock backend 與假時鐘驗證，不等同真實 TUI／Toast 的延遲量測。
 - Windows helper：實際檢查兩個 PowerShell 腳本的語法、無效輸入、通道全關閉時的有效輸入，以及缺失 WAV 的固定失敗結果；不顯示 Toast 或播放音效。單通道成功／失敗與部分成功由 mock launcher 驗證。
 - WAV：自行合成 PCM fixtures，實際呼叫讀取與驗證函式；涵蓋 mono／stereo、8／16 bit、五秒邊界、奇數 chunk padding、Unicode／引號／指令樣式檔名、超大／截斷／偽造格式、重複 chunks、缺失檔案、目錄及祖先 junction。這些測試不執行播放函式。
 - 發布：npm pack dry-run 核對精確清單，僅包含 package metadata、runtime TS、PowerShell helpers、雙語 README 與授權文件。
@@ -62,7 +62,7 @@ npm pack --dry-run --ignore-scripts
 - 自訂 WAV 播放已有實際可聽驗收；原紀錄未註明驗收版本與環境，不補推。
 - 自 0.2.0 記錄為待驗收的 Toast-only、sound-only，目前仍未記錄實際可見／可聽結果。舊版通過不代表目前 helper 或所有 Pi 情境已通過。
 
-本次文件整理未觸發實際通知、播放音效或執行新的端到端驗收。
+上述自動驗證未觸發實際通知、播放音效或執行端到端驗收。
 
 ## 待完成驗收
 
@@ -76,6 +76,7 @@ npm pack --dry-run --ignore-scripts
 - [ ] 在真實 Pi 驗證正常完成、中止、錯誤、自動 retry／續跑的最終通知分類。
 - [ ] 確認 Windows 勿擾、停用通知、靜音與音效方案下的行為。
 - [ ] 確認不同 extension 載入順序與 reload 後的實際程序生命週期。
+- [ ] 確認 test 在真實 Pi 中的即時英文請求提示與最終結果顯示時序。程式碼中的等待來源已確認：helper 先提交 Toast，系統音效等待 750 ms（WAV 同步播放），launcher 等 child close 才驗證回傳。立即提示不代表提早提交成功，也不移除音效等待。
 
 實機測試會產生通知與聲音，執行前須取得使用者確認；驗收後更新本文件，記錄版本、環境、情境與結果。
 
@@ -84,7 +85,6 @@ npm pack --dry-run --ignore-scripts
 以下為尚未實作或調查的功能待辦：
 
 - [ ] 點擊 Toast 後，自動切換至對應終端機的對應 tab。
-- [ ] 優化 `/windows-notifier test`：Pi 中顯示的系統訊息改為英文；調查並改善系統訊息比 Toast 晚約 1 秒顯示的原因。
 
 ## 已知限制與刻意不支援
 

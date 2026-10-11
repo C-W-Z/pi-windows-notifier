@@ -208,8 +208,8 @@ Pi 的 UI 事件沒有說明是哪個工具開了視窗。因此，只有恰好�
 - `status`：以分行摘要查看總開關、backend、事件開啟數、佇列計數、helper 狀態和診斷碼。不帶參數也會顯示相同摘要。
 - `status all`：在摘要下方列出設定版本、五種事件的開關、彈窗開關與音效開關／來源。事件明細是設定值，實際通知仍受總開關、事件開關、通道開關及 backend 限制。
 - 摘要與明細都不會顯示自訂文字、檔案路徑或 session 內容；檔案音效只標示為 `WAV file`。
-- `reload`：重新讀取設定，取消舊的通知工作。
-- `test`：預設測試完成通知，也能指定 `permission`、`question`、`completed`、`aborted` 或 `failed`。
+- `reload`：重新讀取設定，取消舊的通知工作；Pi 中的重新載入提示與診斷訊息使用英文。
+- `test`：預設測試完成通知，也能指定 `permission`、`question`、`completed`、`aborted` 或 `failed`。Pi 先立即顯示英文請求提示（含事件類型），等待佇列與 helper 結束後，再以英文回報提交、部分提交、停用、取消、丟棄、過期或失敗結果。請求提示不代表已成功送出；reload、session 切換或 shutdown 後不再回報舊 session 的測試結果。
 
 `status` 摘要範例：
 
@@ -232,6 +232,15 @@ Details: /windows-notifier status all
 ```
 
 **測試會真的跳通知、播放音效。** 和自動通知一樣，它會遵守開關、佇列與限流，不會強行送出已停用的事件。
+
+例如 `/windows-notifier test` 的 Pi 提示：
+
+```text
+Test notification requested (completed); waiting for the result.
+Test notification submitted. Windows settings determine whether it is displayed or heard.
+```
+
+最終結果不會刻意提早：helper 先送出 Toast，再處理音效；系統音效的非同步播放保留 750 ms 等待，本機 WAV 則同步播放。Pi 要等 helper 結束並驗證結果，才會回報提交成功；Windows 仍決定是否實際顯示／播放。未啟動或環境不支援時，直接回報停用。
 
 
 ## 常見問題

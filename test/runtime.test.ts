@@ -6,6 +6,7 @@ import type { NotificationPayload } from "../src/types.ts";
 import type { Backend, LaunchResult } from "../src/launcher.ts";
 import { registerNotifier } from "../src/runtime.ts";
 import { FakeClock, flush } from "./clock.ts";
+import { QUEUE_TTL } from "../src/scheduler.ts";
 
 type Hook = (event: unknown, context: ExtensionContext) => unknown;
 type GetCompletions = NonNullable<Parameters<ExtensionAPI["registerCommand"]>[1]["getArgumentCompletions"]>;
@@ -14,6 +15,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   const handlers = new Map<string, Hook[]>();
   const listeners = new Map<string, Set<(raw: unknown) => void>>();
   const messages: string[] = [];
+  const notices: Array<{ message: string; type?: string }> = [];
   const calls: Array<{ kind: string; payload: NotificationPayload; signal: AbortSignal; resolve(result: LaunchResult): void }> = [];
   let command: (args: string, context: ExtensionCommandContext) => Promise<void>;
   let completions: GetCompletions;
@@ -21,7 +23,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   let makeCount = 0;
   let result: ConfigResult = options.result ?? { ok: true, config: defaults() };
   const context = { mode: options.mode ?? "tui", hasUI: !["print", "json"].includes(options.mode ?? "tui"),
-    ui: { notify: (message: string) => messages.push(message),
+    ui: { notify: (message: string, type?: string) => { messages.push(message); notices.push({ message, type }); },
       addAutocompleteProvider: (factory: typeof providers[number]) => providers.push(factory) } } as unknown as ExtensionContext;
   const api = {
     on(name: string, handler: Hook) {
@@ -48,7 +50,7 @@ function harness(options: { mode?: string; platform?: NodeJS.Platform; result?: 
   registerNotifier(api, { platform: options.platform ?? "win32", arch: "x64", clock, readConfig: () => result,
     backend: () => { makeCount++; return backend; } });
   return {
-    clock, calls, messages, listeners, providers,
+    clock, calls, messages, notices, listeners, providers,
     makeCount: () => makeCount,
     setResult: (next: ConfigResult) => { result = next; },
     hook: async (name: string, event: unknown = {}) => {
@@ -191,7 +193,7 @@ test("未知或過多的 status 參數顯示用法，不回顯輸入或提交通
   await h.hook("session_start");
   for (const args of ["status PRIVATE_INPUT", "status detail", "status detail extra", "status all extra"]) {
     await h.command(args);
-    assert.match(h.messages.at(-1)!, /^用法：\/windows-notifier status \[all\]/u);
+    assert.match(h.messages.at(-1)!, /^Usage: \/windows-notifier status \[all\]/u);
   }
   assert.equal(h.messages.join().includes("PRIVATE_INPUT"), false);
   assert.equal(h.calls.length, 0);
@@ -281,9 +283,173 @@ test("無效設定 fail closed，test 不繞過開關；reload 清除舊事件",
   await h.tick();
   await testPromise;
   assert.equal(h.calls[0].kind, "failed");
-  assert.ok(h.messages.some(message => message.includes("已提交")));
+  assert.ok(h.messages.some(message => message.startsWith("Test notification submitted.")));
   await h.command("test $(SECRET)");
   assert.equal(h.messages.join().includes("SECRET"), false);
+  await h.hook("session_shutdown");
+});
+test("test 立即顯示英文請求，helper 結束後才回報提交結果", async () => {
+  const h = harness({ slow: true });
+  await h.hook("session_start");
+  const pending = h.command("test");
+  assert.deepEqual(h.notices, [{
+    message: "Test notification requested (completed); waiting for the result.", type: "info",
+  }]);
+  assert.equal(h.calls.length, 0);
+  await h.tick();
+  await h.tick(750);
+  assert.equal(h.messages.length, 1);
+  h.calls[0].resolve({ code: "OK", toast: true, sound: "played" });
+  await pending;
+  assert.deepEqual(h.notices.at(-1), {
+    message: "Test notification submitted. Windows settings determine whether it is displayed or heard.", type: "info",
+  });
+  await h.hook("session_shutdown");
+});
+test("test 排隊與限流期間立即顯示事件類型，不提前宣告成功或啟動第二個 helper", async () => {
+  const h = harness({ slow: true });
+  await h.hook("session_start");
+  h.bus("permissions:ui_prompt", { requestId: "active" });
+  await h.tick();
+  const pending = h.command("test question");
+  assert.equal(h.messages.at(-1), "Test notification requested (question); waiting for the result.");
+  await h.tick(100);
+  assert.equal(h.calls.length, 1);
+  h.calls[0].resolve({ code: "OK", toast: true, sound: "played" });
+  await flush();
+  await h.tick(899);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.messages.length, 1);
+  await h.tick(1);
+  assert.equal(h.calls[1].kind, "question");
+  h.calls[1].resolve({ code: "OK", toast: true, sound: "played" });
+  await pending;
+  assert.match(h.messages.at(-1)!, /^Test notification submitted\./u);
+  await h.hook("session_shutdown");
+});
+test("test 的部分提交、失敗與診斷訊息為英文 warning", async () => {
+  for (const result of [
+    { code: "SOUND_FAILED", toast: true, sound: "failed" },
+    { code: "TOAST_FAILED", toast: false, sound: "played" },
+    { code: "BOTH_FAILED", toast: false, sound: "failed" },
+    { code: "HELPER_TIMEOUT", toast: false, sound: "failed" },
+  ] as LaunchResult[]) {
+    const h = harness({ slow: true });
+    await h.hook("session_start");
+    const pending = h.command("test failed");
+    assert.match(h.messages.at(-1)!, /requested \(failed\)/u);
+    await h.tick();
+    h.calls[0].resolve(result);
+    await pending;
+    assert.deepEqual(h.notices.at(-2), {
+      message: `Windows notifier: ${result.code}. Run /windows-notifier status to check the status.`, type: "warning",
+    });
+    assert.deepEqual(h.notices.at(-1), {
+      message: result.toast || result.sound === "played"
+        ? "Test notification partially submitted. Run /windows-notifier status for diagnostic codes."
+        : "Test notification submission failed. Run /windows-notifier status for diagnostic codes.",
+      type: "warning",
+    });
+    assert.equal(/[\u3400-\u9fff]/u.test(h.messages.join()), false);
+    await h.hook("session_shutdown");
+  }
+});
+test("test 停用結果為英文 warning，不繞過環境、事件或通道開關", async () => {
+  const cases = [
+    harness(), harness({ platform: "linux" }),
+    harness({ result: parseConfig({ schemaVersion: 2, enabled: false }) }),
+    harness({ result: parseConfig({ schemaVersion: 2, events: { completed: { enabled: false } } }) }),
+    harness({ result: parseConfig({ schemaVersion: 2, defaults: { toast: { enabled: false }, sound: { enabled: false } } }) }),
+  ];
+  for (const [index, h] of cases.entries()) {
+    if (index !== 0) await h.hook("session_start");
+    await h.command("test");
+    assert.deepEqual(h.notices.at(-1), {
+      message: "Notifications are disabled, or this environment/event is unsupported.", type: "warning",
+    });
+    assert.equal(/[\u3400-\u9fff]/u.test(h.messages.join()), false);
+    assert.equal(h.calls.length, 0);
+    await h.hook("session_shutdown");
+  }
+});
+test("test 取消結果為英文 warning，不宣告提交成功", async () => {
+  const h = harness({ slow: true });
+  await h.hook("session_start");
+  const pending = h.command("test aborted");
+  await h.tick();
+  h.calls[0].resolve({ code: "CANCELLED", toast: false, sound: "failed" });
+  await pending;
+  assert.deepEqual(h.notices.at(-1), { message: "Test notification cancelled.", type: "warning" });
+  await h.hook("session_shutdown");
+});
+test("test 佇列滿載與過期結果為英文 warning", async () => {
+  const full = harness({ slow: true });
+  await full.hook("session_start");
+  full.bus("permissions:ui_prompt", { requestId: "active" });
+  await full.tick();
+  const dropped = full.command("test");
+  for (let i = 0; i < 16; i++) full.bus("permissions:ui_prompt", { requestId: `queued-${i}` });
+  await dropped;
+  assert.deepEqual(full.notices.at(-1), {
+    message: "Test notification dropped because the queue is full.", type: "warning",
+  });
+  const closing = full.hook("session_shutdown");
+  await flush();
+  full.calls[0].resolve({ code: "CANCELLED", toast: false, sound: "failed" });
+  await closing;
+
+  const stale = harness({ slow: true });
+  await stale.hook("session_start");
+  stale.bus("permissions:ui_prompt", { requestId: "active" });
+  await stale.tick();
+  const expired = stale.command("test");
+  await stale.tick(QUEUE_TTL);
+  stale.calls[0].resolve({ code: "OK", toast: true, sound: "played" });
+  await flush();
+  await stale.tick();
+  await expired;
+  assert.deepEqual(stale.notices.at(-1), {
+    message: "Test notification expired while waiting in the queue.", type: "warning",
+  });
+  assert.equal(stale.calls.length, 1);
+  await stale.hook("session_shutdown");
+});
+test("test 遇到 reload、session 切換或 shutdown 不回報舊 session 的結果", async () => {
+  for (const transition of ["reload", "session_start", "session_shutdown"]) {
+    const h = harness({ slow: true });
+    await h.hook("session_start");
+    const pending = h.command("test");
+    await h.tick();
+    const switching = transition === "reload" ? h.command("reload") : h.hook(transition);
+    await flush();
+    assert.equal(h.calls[0].signal.aborted, true);
+    h.calls[0].resolve({ code: "OK", toast: true, sound: "played" });
+    await Promise.all([pending, switching]);
+    assert.deepEqual(h.messages, [
+      "Test notification requested (completed); waiting for the result.",
+      ...(transition === "reload" ? [
+        "Windows notifier configuration reloaded. Run /windows-notifier status to check the effective status.",
+      ] : []),
+    ]);
+    await h.hook("session_shutdown");
+  }
+});
+test("reload 成功與無效設定的訊息皆為英文，保留安全診斷碼", async () => {
+  const h = harness();
+  await h.hook("session_start");
+  await h.command("reload");
+  assert.deepEqual(h.notices.at(-1), {
+    message: "Windows notifier configuration reloaded. Run /windows-notifier status to check the effective status.", type: "info",
+  });
+  h.setResult({ ok: false, code: "CONFIG_INVALID", config: { ...defaults(), enabled: false } });
+  await h.command("reload");
+  assert.deepEqual(h.notices.at(-2), {
+    message: "Windows notifier: CONFIG_INVALID. Run /windows-notifier status to check the status.", type: "warning",
+  });
+  assert.equal(/[\u3400-\u9fff]/u.test(h.messages.join()), false);
+  await h.command("status");
+  assert.match(h.messages.at(-1)!, /Global: Off/u);
+  assert.match(h.messages.at(-1)!, /Diagnostics: CONFIG_INVALID/u);
   await h.hook("session_shutdown");
 });
 test("自訂文字可送達 backend，但 status、警告及 test 結果不展示設定文字", async () => {

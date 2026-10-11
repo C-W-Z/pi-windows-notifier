@@ -208,8 +208,8 @@ Run these inside Pi. After `/windows-notifier `, press **Tab** to show `status`,
 - `status` shows a readable, multi-line summary: the global switch, backend, enabled-event count, queue counters, helper state, and diagnostic codes. Omitting the subcommand shows the same summary.
 - `status all` adds the schema version and each event's switch, toast switch, and sound switch/source. These are configured values; actual notifications still depend on the global, event, and channel switches and the backend.
 - Neither view displays custom text, file paths, or session content. File sounds are labeled `WAV file` without their paths.
-- `reload` reads the config again and cancels old notification work.
-- `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`.
+- `reload` reads the config again and cancels old notification work. Reload feedback and diagnostic messages in Pi are in English.
+- `test` sends a completion notification by default. You can also choose `permission`, `question`, `completed`, `aborted`, or `failed`. Pi immediately shows an English request acknowledgement with the event type, then reports the result in English after queueing and helper completion: submitted, partially submitted, disabled, cancelled, dropped, expired, or failed. The acknowledgement does not claim success. Results from an old session are suppressed after reload, session switching, or shutdown.
 
 Example `status` summary (status output is in English):
 
@@ -232,6 +232,15 @@ Details: /windows-notifier status all
 ```
 
 **Tests produce real notifications and sounds.** They follow the same switches, queue limits, and rate limits as automatic notifications, so they won't override a disabled event.
+
+For example, `/windows-notifier test` shows these messages in Pi:
+
+```text
+Test notification requested (completed); waiting for the result.
+Test notification submitted. Windows settings determine whether it is displayed or heard.
+```
+
+The final result is not reported early: the helper submits the toast before handling sound, retains a 750 ms wait for asynchronous system sounds, and plays local WAV files synchronously. Pi waits for helper completion and result validation before reporting successful submission; Windows still determines whether anything is displayed or heard. If the session has not started or the environment is unsupported, Pi reports disabled directly.
 
 ## FAQ
 

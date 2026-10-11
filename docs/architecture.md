@@ -76,6 +76,8 @@ package.json 的 pi.extensions
 - 總開關、事件開關與至少一個通道開關都需成立。預設五事件皆開、Toast 與 sound 皆開；completed 用 Hand，其餘用 Exclamation。
 - state 產生 NotificationJob，scheduler 保存 key、kind、valid callback，不保存 session 內容；提交與出佇列時檢查有效性及設定，launch 時取通道快照。
 - helper 結果與 exit code 必須一致；Toast 和 sound 分別回報。scheduler 將結果轉為 submitted／partial／failed 等固定狀態，不自動重試。
+- test 在有 scheduler 的有效 session 中先立即顯示英文請求提示（含事件類型），不等待佇列或 helper；最終英文結果仍等待 Submission，且僅回報至同一個未 disposed 的 session。未啟動／不支援環境直接回報停用。reload 提示、診斷與指令用法也使用英文。
+- helper 先提交 Toast，再處理音效；系統音效 Play 非同步，保留 750 ms 等待，本機 WAV 用 PlaySync。launcher 等 child close 並驗證協定及 exit code 才回傳，避免提前宣告成功或釋放單一 helper 配額。
 - status 是安全摘要，status all 才提供事件明細；不顯示自訂文字或 WAV 路徑。診斷集合最多 32 種，終端警告最多每分鐘一次。
 
 ## 資源上限與安全邊界

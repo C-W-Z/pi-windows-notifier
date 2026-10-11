@@ -26,13 +26,13 @@ interface Session {
   testId: number;
 }
 const SUBMISSION_MESSAGES: Record<Submission["status"], string> = {
-  submitted: "Windows 通知已提交；實際顯示與音效仍由 Windows 設定決定。",
-  partial: "Windows 通知僅部分提交；請用 status 查看固定診斷碼。",
-  disabled: "通知已停用，或目前不支援此環境／事件。",
-  cancelled: "測試通知已取消。",
-  dropped: "測試通知因佇列滿載而被丟棄。",
-  expired: "測試通知已過期。",
-  failed: "Windows 通知提交失敗；請用 status 查看固定診斷碼。",
+  submitted: "Test notification submitted. Windows settings determine whether it is displayed or heard.",
+  partial: "Test notification partially submitted. Run /windows-notifier status for diagnostic codes.",
+  disabled: "Notifications are disabled, or this environment/event is unsupported.",
+  cancelled: "Test notification cancelled.",
+  dropped: "Test notification dropped because the queue is full.",
+  expired: "Test notification expired while waiting in the queue.",
+  failed: "Test notification submission failed. Run /windows-notifier status for diagnostic codes.",
 };
 
 /** 只展示安全的狀態欄位；明細也不包含自訂文字、檔案路徑或 session 內容。 */
@@ -89,7 +89,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
     try {
       if (target.context.mode !== "tui" || !target.context.hasUI || now - target.lastWarning < 60_000) return;
       target.lastWarning = now;
-      target.context.ui.notify(`Windows notifier：${code}。可用 /windows-notifier status 查看狀態。`, "warning");
+      target.context.ui.notify(`Windows notifier: ${code}. Run /windows-notifier status to check the status.`, "warning");
     } catch { /* session 更換時的 stale context／UI 不影響 agent。 */ }
   };
   const stop = async () => {
@@ -159,7 +159,7 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
       const parts = args.trim().split(/\s+/u);
       if (parts.length === 1 && parts[0] === "reload") {
         await transition(() => start(context));
-        context.ui.notify("Windows notifier 設定已重新載入；請用 status 查看有效狀態。", "info");
+        context.ui.notify("Windows notifier configuration reloaded. Run /windows-notifier status to check the effective status.", "info");
         return;
       }
       const target = session;
@@ -174,15 +174,17 @@ export function registerNotifier(pi: ExtensionAPI, options: RuntimeOptions = {})
           context.ui.notify(SUBMISSION_MESSAGES.disabled, "warning");
           return;
         }
+        const kind = (parts[1] ?? "completed") as NotificationKind;
+        // 先回報請求，避免 UI 要等佇列、音效播放與 helper close；此時尚未宣告提交成功。
+        context.ui.notify(`Test notification requested (${kind}); waiting for the result.`, "info");
         const result = await target.scheduler.submit({ key: "test:" + ++target.testId,
-          kind: (parts[1] ?? "completed") as NotificationKind,
-          valid: () => session === target && !target.disposed });
+          kind, valid: () => session === target && !target.disposed });
         // reload／session 切換後不再使用已失效的 command context。
         if (session === target && !target.disposed) context.ui.notify(SUBMISSION_MESSAGES[result.status],
           result.status === "submitted" ? "info" : "warning");
         return;
       }
-      context.ui.notify("用法：/windows-notifier status [all] | reload | test [permission|question|completed|aborted|failed]", "warning");
+      context.ui.notify("Usage: /windows-notifier status [all] | reload | test [permission|question|completed|aborted|failed]", "warning");
     },
   });
 }
